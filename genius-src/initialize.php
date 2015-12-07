@@ -8,10 +8,15 @@
 
 namespace {
 
-    use Genius\Exception\Info;
-
     ini_set('display_errors', true);
     error_reporting(E_ALL);
+
+    defined('APP_ROOT') or define('APP_ROOT', dirname(__DIR__));
+    defined('GENIUS_DEBUG') or define('GENIUS_DEBUG', false);
+    defined('GENIUS_ROOT') or define('GENIUS_ROOT', __DIR__);
+
+    define('GENIUS_VERSION', '1.0');
+    define('GENIUS_COMMAND_LINE', in_array(strtolower(PHP_SAPI), ['cli']));
 
     abstract class Genius
     {
@@ -20,6 +25,7 @@ namespace {
         public static function init()
         {
         }
+
         /**
          * @param string $format
          * @param array $args
@@ -45,8 +51,8 @@ namespace {
             $base = array_shift($group);
             $path = implode($group);
 
-            if(isset(self::$aliases[$alias])) return self::$aliases[$alias];
-            if(isset(self::$aliases[$base])) return self::$aliases[$base] . '/' . $path;
+            if (isset(self::$aliases[$alias])) return self::$aliases[$alias];
+            if (isset(self::$aliases[$base])) return self::$aliases[$base] . '/' . $path;
             return null;
         }
 
@@ -58,22 +64,28 @@ namespace {
         {
             self::$aliases[$alias] = $path;
         }
+    }
+
+    abstract class Data
+    {
 
         /**
-         * @param string $message
-         * @param int $statusCode
-         * @throws Genius\Exception\Info
-         * @return void
+         * @param int|double $size
+         * @param int $fixed [optional]
+         * @return string
          */
-        public static function trace($message, $statusCode = 200)
+        public static function convert($size, $fixed = 0)
         {
-            //ob_clean();
-            throw new Info($message);
-            $text = ob_get_clean();
+            $unit = ['Byte', 'KB', 'MB', 'GB', 'TB', 'PB'];
+            $i = 0;
+            while ($size >= 1024) {
+                $size /= 1024;
+                $i++;
+            }
 
-            header('HTTP/1.1 '. $statusCode . ' OK');
-            echo $text;
+            return sprintf('%.'.$fixed.'f', $size) . $unit[$i];
         }
+
     }
 }
 
@@ -82,9 +94,16 @@ namespace Genius {
     use Genius;
     use Genius\Event\Passer;
     use Genius\View\Compiler;
+    use Genius\Exception\Assoc;
 
     abstract class Application extends Genius
     {
+        private static $stack = [];
+
+        public function __construct()
+        {
+        }
+
         /**
          * @return void
          */
@@ -94,10 +113,38 @@ namespace Genius {
             require APP_ROOT . '/controllers/index.class.php';
             (new \controllers\index())->prepare([])->execute();
         }
+
+        /**
+         * @param string $assoc
+         * @throws Genius\Exception\Assoc
+         * @return string|float
+         */
+        public static function elapsed($assoc)
+        {
+            if (!in_array($assoc, ['time', 'memory'])) {
+                throw new Assoc($assoc);
+            }
+
+            switch ($assoc)
+            {
+                case 'time':
+                    if (empty(self::$stack[$assoc])) return self::$stack[$assoc] = round(microtime(true) * 1000);
+                    $now = round(microtime(true) * 1000);
+                    break;
+                case 'memory':
+                    if (empty(self::$stack[$assoc])) return self::$stack[$assoc] = memory_get_usage();
+                    $now = memory_get_usage();
+                    break;
+            }
+
+            return round($now - self::$stack[$assoc]);
+
+        }
     }
 
     abstract class Route
-    {}
+    {
+    }
 
     abstract class Controller extends Compiler
     {
@@ -128,36 +175,48 @@ namespace Genius\Controller {
         }
 
         public function execute()
-        {}
+        {
+        }
     }
 
     abstract class Console extends Controller
-    {}
+    {
+    }
 
     abstract class Api extends Controller
-    {}
+    {
+    }
 }
 
 namespace Genius\Event {
 
     use Genius;
     use Genius\Application;
+    use Genius\Exception\PHPVersion;
 
     abstract class Passer
     {
         public static function run()
         {
+            Application::elapsed('time');
             Application::setAlias('@root', APP_ROOT);
             date_default_timezone_set('Asia/Shanghai');
 
             set_error_handler([__CLASS__, 'error']);
             set_exception_handler([__CLASS__, 'exception']);
             register_shutdown_function([__CLASS__, 'shutdown']);
+
+            $version = '5.4.0';
+            if (version_compare(PHP_VERSION, $version, '<')) throw new PHPVersion($version);
         }
 
         public static function exception($e)
         {
-            switch (error_reporting() & $e->getSeverity()) {
+            ob_clean();
+            $severity = $e->getSeverity();
+            $datetime = date('Y-m-d H:i:s');
+
+            switch (error_reporting() & $severity) {
                 case E_NOTICE:
                 case E_USER_NOTICE:
                     $level = 'notice';
@@ -176,23 +235,33 @@ namespace Genius\Event {
 
             $list = [];
 
-            foreach($e->getTrace() as $value)
-            {
-                if(isset($value['file'])) {
-                    array_push($list, '<li><em>'.$value['file'].'</em> line '.$value['line'].'</li>');
+            foreach ($e->getTrace() as $value) {
+                if (isset($value['file'])) {
+                    array_push($list, '<li><em>' . $value['file'] . '</em> line ' . $value['line'] . '</li>');
                 }
             }
+
             echo Genius::printf('<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <title>500 Internet Server Error</title>
 <style type="text/css">
-body{margin:0;padding:10px;}
-.exception{padding:20px;min-width:700px;box-sizing:border-box;background:#eee;display:inline-block;font-family:arial,Helvetica,sans-serif;font-size:13px}
-.exception h1{line-height:20px;position:relative;display:block;font-weight:normal;color:#f00;font-size:20px;}
-.exception h1 span{position:absolute;right:0;background:#ccc;padding:4px 10px;color:#fff;font-size:.5rem;line-height:1;}
-.exception .message{line-height:1.8;color:#333;padding:25px 0;border-top:solid 1px #aaa;}
+body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px}
+.hide{display:none;}
+.exception{min-width:700px;box-sizing:border-box;background:#eee;display:inline-block;}
+.inside{padding:0 20px 10px 20px;}
+.header{}
+.exception h1{margin:0;padding:35px 20px 20px 20px;line-height:20px;position:relative;display:block;font-weight:normal;color:#f00;font-size:20px;border-bottom:solid 1px #ccc;}
+.exception h1 span{position:absolute;right:20px;background:#ccc;padding:4px 10px;color:#fff;font-size:.5rem;line-height:1;}
+.fixed {position:fixed;width:100%;bottom:0;left:0;display:block;background:#e0e0e0;margin:0;font-size:13px;padding:0 20px;list-style:none;}
+.fixed li{padding:10px 0;line-height:20px;height:20px;color:#444;font-size:13px;display:inline-block;margin-right:10px;}
+.fixed li span{display:inline-block;font-size:12px;line-height:16px;height:16px;margin:2px 0 2px 10px;border-radius:2px;padding:0 10px;background:#999;color:#fff;}
+.fixed li:last-child{margin:0;}
+.fixed li span.passed{background:#090;}
+.fixed li span.wraning{background:#e90;}
+.fixed li span.highlight{background:#e00;}
+.exception .message{line-height:1.8;color:#333;padding:30px 0;}
 .exception .message em{color:#f00;text-decoration:underline;}
 .exception .message span.level{border-radius:2px;color:#fff;line-height:18px;padding:0 6px;display:inline-block;height:18px;font-size:12px;margin-right:10px;}
 .exception span.info{background:#999;}
@@ -200,6 +269,7 @@ body{margin:0;padding:10px;}
 .exception span.warning{background:#e90;}
 .exception span.error{background:#e00;}
 .exception .footer{color:#444;font-style:italic;}
+.exception .footer .breakpoint{}
 .exception .footer ul.list{padding-left:30px;}
 .exception .footer ul.list li{line-height:1.65;}
 .exception .footer .list li em{text-decoration:underline;}
@@ -208,17 +278,32 @@ body{margin:0;padding:10px;}
 
 <body>
 <div class="exception">
-<h1><strong>Genius Debugger</strong><!--<span class="datetime"></span>--></h1>
+<h1><strong>Genius Exception</strong><span class="datatime">{datetime}</span></h1>
+<div class="inside">
 <div class="message"><span class="level {level}">{levelstr}</span>{message}</div>
-<div class="footer"><span>Breakpoint list</span><ul class="list">{list}</ul></div>
+<div class="footer">
+    <div class="breakpoint"><span>Breakpoint list</span><ul class="list">{list}</ul></div>
 </div>
-<!--[ Genius v1.0 ]-->
+</div>
+</div>
+<ul class="fixed">
+<li><label>Genius</label><span>1.0</span></li>
+<li><label>PHP</label><span>5.5.29</span></li>
+<li><label>Status</label><span class="passed">200</span></li>
+<li><label>Memory</label><span>25M</span></li>
+<li><label>Time</label><span>100ms</span></li>
+<li><label>OS</label><span>Windows</span></li>
+<li><label>Host</label><span>localhost</span></li>
+<li><label>Path</label><span>E:/htdocs</span></li>
+</ul>
 </body>
 </html>', [
+                'datetime' => $datetime,
                 'level' => $level,
                 'levelstr' => ucfirst($level),
                 'message' => $e->getMessage(),
                 'list' => implode("\n", $list)]);
+
         }
 
         public static function error($errno, $errstr, $errfile, $errline)
@@ -251,8 +336,26 @@ namespace Genius\Exception {
         }
     }
 
+    class Assoc extends ErrorException
+    {
+    }
+
     class PHPVersion extends ErrorException
-    {}
+    {
+        /**
+         * Constructs the ErrorException
+         * @param string $message [optional]
+         * @param int $code [optional]
+         * @param int $severity [optional]
+         * @param string $filename [optional]
+         * @param int $lineno [optional]
+         * @param Exception $previous [optional]
+         */
+        public function __construct($message = "", $code = 0, $severity = 1, $filename = __FILE__, $lineno = __LINE__, $previous = NULL)
+        {
+            parent::__construct('PHP version not less than ' . $message, $code, $severity, $filename, $lineno, $previous);
+        }
+    }
 }
 
 namespace Genius\View {
@@ -260,5 +363,6 @@ namespace Genius\View {
     use Genius\Application;
 
     abstract class Compiler extends Application
-    {}
+    {
+    }
 }

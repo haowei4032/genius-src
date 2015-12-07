@@ -254,7 +254,7 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 .exception h1{margin:0;padding:35px 20px 20px 20px;line-height:20px;position:relative;display:block;font-weight:normal;color:#f00;font-size:20px;border-bottom:solid 1px #ccc;}
 .exception h1 span{position:absolute;right:20px;background:#ccc;padding:4px 10px;color:#fff;font-size:.5rem;line-height:1;}
 .fixed {font-size:12px;display:block;background:#e0e0e0;margin:0;padding:0 20px;list-style:none;border-top:solid 1px #ddd;}
-.fixed li{padding:15px 0;line-height:20px;height:20px;color:#444;display:inline-block;margin-right:10px;}
+.fixed li{padding:10px 0;line-height:20px;height:20px;color:#444;display:inline-block;margin-right:10px;}
 .fixed li span{display:inline-block;font-size:12px;line-height:16px;height:16px;margin:2px 0 2px 10px;border-radius:2px;padding:0 10px;background:#999;color:#fff;}
 .fixed li:last-child{margin:0;}
 .fixed li span.passed{background:#090;}
@@ -285,12 +285,12 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 </div>
 </div>
 <ul class="fixed">
-<li><label>Genius</label><span>1.0</span></li>
-<li><label>PHP</label><span>5.5.29</span></li>
-<li><label>Status</label><span class="passed">200</span></li>
-<li><label>Route</label><span>index/index</span></li>
-<li><label>Memory</label><span>25M</span></li>
-<li><label>Time</label><span>100ms</span></li>
+<li><label>Genius</label><span>{version}</span></li>
+<li><label>PHP</label><span>{phpversion}</span></li>
+<li><label>Status</label><span class="passed">{code}</span></li>
+<li><label>Route</label><span>{route}</span></li>
+<li><label>Memory</label><span>{memory}</span></li>
+<li><label>Time</label><span>{time}</span></li>
 </ul>
 </div>
 </body>
@@ -299,7 +299,14 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
                 'level' => $level,
                 'levelstr' => ucfirst($level),
                 'message' => $e->getMessage(),
-                'list' => implode("\n", $list)]);
+                'list' => implode("\n", $list),
+                'version' => GENIUS_VERSION,
+                'phpversion' => PHP_VERSION,
+                'code' => 200,
+                'route' => 'index/index',
+                'memory' => \Data::convert(Application::elapsed('memory'), 2),
+                'time' => Application::elapsed('time') . 'ms'
+            ]);
 
         }
 

@@ -251,11 +251,10 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 .hide{display:none;}
 .exception{min-width:700px;box-sizing:border-box;background:#eee;display:inline-block;}
 .inside{padding:0 20px 10px 20px;}
-.header{}
 .exception h1{margin:0;padding:35px 20px 20px 20px;line-height:20px;position:relative;display:block;font-weight:normal;color:#f00;font-size:20px;border-bottom:solid 1px #ccc;}
 .exception h1 span{position:absolute;right:20px;background:#ccc;padding:4px 10px;color:#fff;font-size:.5rem;line-height:1;}
-.fixed {position:fixed;width:100%;bottom:0;left:0;display:block;background:#e0e0e0;margin:0;font-size:13px;padding:0 20px;list-style:none;}
-.fixed li{padding:10px 0;line-height:20px;height:20px;color:#444;font-size:13px;display:inline-block;margin-right:10px;}
+.fixed {font-size:12px;display:block;background:#e0e0e0;margin:0;padding:0 20px;list-style:none;border-top:solid 1px #ddd;}
+.fixed li{padding:15px 0;line-height:20px;height:20px;color:#444;display:inline-block;margin-right:10px;}
 .fixed li span{display:inline-block;font-size:12px;line-height:16px;height:16px;margin:2px 0 2px 10px;border-radius:2px;padding:0 10px;background:#999;color:#fff;}
 .fixed li:last-child{margin:0;}
 .fixed li span.passed{background:#090;}
@@ -285,17 +284,15 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
     <div class="breakpoint"><span>Breakpoint list</span><ul class="list">{list}</ul></div>
 </div>
 </div>
-</div>
 <ul class="fixed">
 <li><label>Genius</label><span>1.0</span></li>
 <li><label>PHP</label><span>5.5.29</span></li>
 <li><label>Status</label><span class="passed">200</span></li>
+<li><label>Route</label><span>index/index</span></li>
 <li><label>Memory</label><span>25M</span></li>
 <li><label>Time</label><span>100ms</span></li>
-<li><label>OS</label><span>Windows</span></li>
-<li><label>Host</label><span>localhost</span></li>
-<li><label>Path</label><span>E:/htdocs</span></li>
 </ul>
+</div>
 </body>
 </html>', [
                 'datetime' => $datetime,

@@ -8,4 +8,4 @@ http://git.haowei.me.
 
 Pull Requests
 =============
-We are accept pull requests directly on github, Volunteers are welcome to join.
+We are accept pull requests directly on github, Volunteers are welcome to join genius@haowei.me.

@@ -13,8 +13,12 @@ return [
         'parameters' => [
             'id' => 1
         ],
+
         'components' => [
 
+            'log' => [
+                'class' => 'Genius\Log\File'
+            ]
         ]
 
     ]

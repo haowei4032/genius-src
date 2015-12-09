@@ -69,21 +69,43 @@ namespace {
     abstract class Data
     {
 
+
+        const UNIT_STORAGE = 0x1;
+        const UNIT_TIME = 0x2;
+
         /**
-         * @param int|double $size
+         * @param int|double $number
+         * @param int $convert [optional]
          * @param int $fixed [optional]
          * @return string
          */
-        public static function convert($size, $fixed = 0)
+        public static function convert($number, $convert = self::UNIT_STORAGE, $fixed = 7)
         {
-            $unit = ['Byte', 'KB', 'MB', 'GB', 'TB', 'PB'];
             $i = 0;
-            while ($size >= 1024) {
-                $size /= 1024;
-                $i++;
+            switch($convert)
+            {
+                case self::UNIT_STORAGE:
+                    $unit = ['Byte', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                    while($number >= 1024)
+                    {
+                        $number /= 1024;
+                        $i++;
+                    }
+                    return sprintf('%.'.$fixed.'f', $number) . $unit[$i];
+                    break;
+                case self::UNIT_TIME:
+                    $unit = ['ms', 's', 'minutes', 'hours', 'day'];
+                    $offset = 1000;
+                    while($number >= $offset)
+                    {
+                        $number /= $offset;
+                        $i++;
+                        if($i >= 4) $i = 4;
+                        $offset = $i < 4 ? 60 : 12;
+                    }
+                    return sprintf('%.'.$fixed.'f', $number) . $unit[$i];
+                    break;
             }
-
-            return sprintf('%.'.$fixed.'f', $size) . $unit[$i];
         }
 
     }
@@ -99,6 +121,8 @@ namespace Genius {
     abstract class Application extends Genius
     {
         private static $stack = [];
+        public $controllerID = null;
+        public $actionID = null;
 
         public function __construct()
         {
@@ -111,13 +135,14 @@ namespace Genius {
         {
             Passer::run();
             require APP_ROOT . '/controllers/index.class.php';
-            (new \controllers\index())->prepare([])->execute();
+            $controllerID = '\\controllers\\index';
+            (new $controllerID())->prepare([])->execute();
         }
 
         /**
          * @param string $assoc
          * @throws Genius\Exception\Assoc
-         * @return string|float
+         * @return float
          */
         public static function elapsed($assoc)
         {
@@ -137,7 +162,7 @@ namespace Genius {
                     break;
             }
 
-            return round($now - self::$stack[$assoc]);
+            return (float) round($now - self::$stack[$assoc]);
 
         }
     }
@@ -170,6 +195,9 @@ namespace Genius\Controller {
     {
         public function prepare($group)
         {
+            self::$controllerID = 'index';
+            self::$actionID = 'index';
+
             $this->index();
             return $this;
         }
@@ -199,6 +227,8 @@ namespace Genius\Event {
         public static function run()
         {
             Application::elapsed('time');
+            Application::elapsed('memory');
+
             Application::setAlias('@root', APP_ROOT);
             date_default_timezone_set('Asia/Shanghai');
 
@@ -225,8 +255,8 @@ namespace Genius\Event {
                 case E_USER_WARNING:
                     $level = 'warning';
                     break;
-                case E_USER_ERROR:
                 case E_ERROR:
+                case E_USER_ERROR:
                     $level = 'error';
                     break;
                 default:
@@ -262,7 +292,7 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 .fixed li span.highlight{background:#e00;}
 .exception .message{line-height:1.8;color:#333;padding:30px 0;}
 .exception .message em{color:#f00;text-decoration:underline;}
-.exception .message span.level{border-radius:2px;color:#fff;line-height:18px;padding:0 6px;display:inline-block;height:18px;font-size:12px;margin-right:10px;}
+.exception .message span.level{text-transform: capitalize;border-radius:2px;color:#fff;line-height:18px;padding:0 6px;display:inline-block;height:18px;font-size:12px;margin-right:10px;}
 .exception span.info{background:#999;}
 .exception span.notice{background:#090;}
 .exception span.warning{background:#e90;}
@@ -279,15 +309,20 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 <div class="exception">
 <h1><strong>Genius Exception</strong><span class="datatime">{datetime}</span></h1>
 <div class="inside">
-<div class="message"><span class="level {level}">{levelstr}</span>{message}</div>
+<div class="message"><span class="level {level}">{level}</span>{message}</div>
 <div class="footer">
-    <div class="breakpoint"><span>Breakpoint list</span><ul class="list">{list}</ul></div>
+<div class="breakpoint">
+<span>Breakpoint list</span>
+<ul class="list">
+{list}
+</ul>
+</div>
 </div>
 </div>
 <ul class="fixed">
-<li><label>Genius</label><span>{version}</span></li>
-<li><label>PHP</label><span>{phpversion}</span></li>
-<li><label>Status</label><span class="passed">{code}</span></li>
+<li><label>Genius</label><span>{genius_version}</span></li>
+<li><label>PHP</label><span>{php_version}</span></li>
+<li><label>Status</label><span class="{status}">{code}</span></li>
 <li><label>Route</label><span>{route}</span></li>
 <li><label>Memory</label><span>{memory}</span></li>
 <li><label>Time</label><span>{time}</span></li>
@@ -295,18 +330,19 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 </div>
 </body>
 </html>', [
-                'datetime' => $datetime,
-                'level' => $level,
-                'levelstr' => ucfirst($level),
-                'message' => $e->getMessage(),
-                'list' => implode("\n", $list),
-                'version' => GENIUS_VERSION,
-                'phpversion' => PHP_VERSION,
-                'code' => 200,
-                'route' => 'index/index',
-                'memory' => \Data::convert(Application::elapsed('memory'), 2),
-                'time' => Application::elapsed('time') . 'ms'
+            'datetime' => $datetime,
+            'level' => $level,
+            'message' => $e->getMessage(),
+            'list' => implode($list),
+            'genius_version' => GENIUS_VERSION,
+            'php_version' => PHP_VERSION,
+            'status' => 'highlight',
+            'code' => 500,
+            'route' => 'index/index',
+            'memory' => \Data::convert(Application::elapsed('memory'), \Data::UNIT_STORAGE, 2),
+            'time' => \Data::convert(Application::elapsed('time'), \Data::UNIT_TIME, 0)
             ]);
+            exit; //中止脚本
 
         }
 

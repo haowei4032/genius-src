@@ -7,20 +7,20 @@
  */
  
 
-namespace controllers;
+namespace Controllers;
 
 use Genius;
 use Genius\Controller\General as Controller;
 
-class index extends Controller {
+class Index extends Controller {
 
     public function __initialize()
-    {}
+    {
+    }
 
     public function index()
     {
-        Genius::trace('abc');
-        echo 11111;
+        Genius::userConfig(APP_ENV)->parameters;
     }
 
 }

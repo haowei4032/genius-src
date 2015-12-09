@@ -122,13 +122,13 @@ namespace {
         public $action = null;
 
         /**
-         * @param Genius\Controller $e
+         * @param Genius\Controller $controller
          * @param string $action
          * @param array $parameters
          */
-        public function __construct(Genius\Controller $e, $action, array $parameters = [])
+        public function __construct(Genius\Controller $controller, $action, array $parameters = [])
         {
-            // new InlineAction($this, $action, $arguments);
+            
         }
 
     }

@@ -328,7 +328,7 @@ namespace Genius\Event {
                     $level = 'error';
                     break;
                 default:
-                    $level = 'InfoException';
+                    $level = 'info';
             }
 
             $list = [];
@@ -361,7 +361,7 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 .exception .message{line-height:1.8;color:#333;padding:30px 0;}
 .exception .message em{color:#f00;text-decoration:underline;}
 .exception .message span.level{text-transform: capitalize;border-radius:2px;color:#fff;line-height:18px;padding:0 6px;display:inline-block;height:18px;font-size:12px;margin-right:10px;}
-.exception span.InfoException{background:#999;}
+.exception span.info{background:#999;}
 .exception span.notice{background:#090;}
 .exception span.warning{background:#e90;}
 .exception span.error{background:#e00;}
@@ -432,17 +432,6 @@ namespace Genius\Exception {
 
     use Exception;
     use ErrorException;
-
-    class InfoException extends Exception
-    {
-        /**
-         * @return int
-         */
-        final public function getSeverity()
-        {
-            return 10;
-        }
-    }
 
     class AssocException extends ErrorException
     {

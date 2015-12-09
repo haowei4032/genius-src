@@ -31,9 +31,9 @@ namespace {
          */
         public static function printf($format, $args)
         {
-            foreach ($args as $assoc => $value) {
+            foreach ($args as $AssocException => $value) {
                 if (!is_numeric($value) && !is_string($value)) continue;
-                $format = str_replace('{' . $assoc . '}', strval($value), $format);
+                $format = str_replace('{' . $AssocException . '}', strval($value), $format);
             }
 
             echo $format;
@@ -65,6 +65,7 @@ namespace {
 
         /**
          * @param string $env [optional]
+         * @throws Genius\Exception\IOException
          * @return void
          */
         public static function userConfig($env = APP_ENV)
@@ -72,7 +73,8 @@ namespace {
             $env = strval($env);
             $list = [];
             $file = APP_ROOT . '/config/config.php';
-            if(is_file($file)) $list = require($file);
+            if(!is_file($file)) throw new IOException;
+            $list = require($file);
             $object = new Object($list);
             return $object->get($env);
         }
@@ -128,7 +130,7 @@ namespace {
          */
         public function __construct(Genius\Controller $controller, $action, array $parameters = [])
         {
-            
+
         }
 
     }
@@ -139,7 +141,7 @@ namespace Genius {
     use Genius;
     use Genius\Event\Passer;
     use Genius\View\Compiler;
-    use Genius\Exception\Assoc;
+    use Genius\Exception\AssocException;
 
     abstract class Application
     {
@@ -163,28 +165,28 @@ namespace Genius {
         }
 
         /**
-         * @param string $assoc
-         * @throws Genius\Exception\Assoc
+         * @param string $AssocException
+         * @throws Genius\Exception\AssocException
          * @return float
          */
-        public static function elapsed($assoc)
+        public static function elapsed($AssocException)
         {
-            if (!in_array($assoc, ['time', 'memory'])) {
-                throw new Assoc($assoc);
+            if (!in_array($AssocException, ['time', 'memory'])) {
+                throw new AssocException($AssocException);
             }
 
-            switch ($assoc) {
+            switch ($AssocException) {
                 case 'time':
-                    if (empty(self::$stack[$assoc])) return self::$stack[$assoc] = round(microtime(true) * 1000);
+                    if (empty(self::$stack[$AssocException])) return self::$stack[$AssocException] = round(microtime(true) * 1000);
                     $now = round(microtime(true) * 1000);
                     break;
                 case 'memory':
-                    if (empty(self::$stack[$assoc])) return self::$stack[$assoc] = memory_get_usage();
+                    if (empty(self::$stack[$AssocException])) return self::$stack[$AssocException] = memory_get_usage();
                     $now = memory_get_usage();
                     break;
             }
 
-            return (float)round($now - self::$stack[$assoc]);
+            return (float)round($now - self::$stack[$AssocException]);
 
         }
     }
@@ -258,7 +260,7 @@ namespace Genius\Controller {
                 }
             }
 
-            if ($missing) throw new MissingParameters();
+            if ($missing) throw new ParametersException();
             $result = call_user_func_array([$this, $actionID], $ptr);
             $returnType = strtolower(gettype($result));
             $this->text = ob_get_clean() . strval($result);
@@ -284,7 +286,7 @@ namespace Genius\Event {
 
     use Genius;
     use Genius\Application;
-    use Genius\Exception\PHPVersion;
+    use Genius\Exception\PHPVersionException;
 
     abstract class Passer
     {
@@ -294,6 +296,8 @@ namespace Genius\Event {
             Application::elapsed('memory');
 
             Genius::setAlias('@root', APP_ROOT);
+            Genius::setAlias('@runtime', APP_ROOT . '/runtime');
+
             date_default_timezone_set('Asia/Shanghai');
 
             set_error_handler([__CLASS__, 'error']);
@@ -301,12 +305,12 @@ namespace Genius\Event {
             register_shutdown_function([__CLASS__, 'shutdown']);
 
             $version = '5.4.0';
-            if (version_compare(PHP_VERSION, $version, '<')) throw new PHPVersion($version);
+            if (version_compare(PHP_VERSION, $version, '<')) throw new PHPVersionException($version);
         }
 
         public static function exception($e)
         {
-            ob_clean();
+            if(ob_get_length()) ob_clean();
             $severity = $e->getSeverity();
             $datetime = date('Y-m-d H:i:s');
 
@@ -324,7 +328,7 @@ namespace Genius\Event {
                     $level = 'error';
                     break;
                 default:
-                    $level = 'info';
+                    $level = 'InfoException';
             }
 
             $list = [];
@@ -357,7 +361,7 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 .exception .message{line-height:1.8;color:#333;padding:30px 0;}
 .exception .message em{color:#f00;text-decoration:underline;}
 .exception .message span.level{text-transform: capitalize;border-radius:2px;color:#fff;line-height:18px;padding:0 6px;display:inline-block;height:18px;font-size:12px;margin-right:10px;}
-.exception span.info{background:#999;}
+.exception span.InfoException{background:#999;}
 .exception span.notice{background:#090;}
 .exception span.warning{background:#e90;}
 .exception span.error{background:#e00;}
@@ -429,7 +433,7 @@ namespace Genius\Exception {
     use Exception;
     use ErrorException;
 
-    class Info extends Exception
+    class InfoException extends Exception
     {
         /**
          * @return int
@@ -440,15 +444,15 @@ namespace Genius\Exception {
         }
     }
 
-    class Assoc extends ErrorException
+    class AssocException extends ErrorException
     {
     }
 
-    class MissingParameters extends ErrorException
+    class ParametersException extends ErrorException
     {
     }
 
-    class PHPVersion extends ErrorException
+    class PHPVersionException extends ErrorException
     {
         /**
          * Constructs the ErrorException
@@ -464,6 +468,10 @@ namespace Genius\Exception {
             parent::__construct('PHP version not less than ' . $message, $code, $severity, $filename, $lineno, $previous);
         }
     }
+
+    class IOException extends ErrorException
+    {
+    }
 }
 
 namespace Genius\View {
@@ -473,5 +481,15 @@ namespace Genius\View {
     abstract class Compiler extends Application
     {
         public $text = null;
+
+        /**
+         * @param string $view
+         * @param array $parameters [optional]
+         * @return string
+         */
+        public function render($view, array $parameters = [])
+        {
+            return strval('aaaa');
+        }
     }
 }

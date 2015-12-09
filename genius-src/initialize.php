@@ -13,6 +13,7 @@ namespace {
     ini_set('display_errors', true);
     error_reporting(E_ALL);
 
+    defined('APP_ENV') or define('APP_ENV', null);
     defined('APP_ROOT') or define('APP_ROOT', dirname(__DIR__));
     defined('GENIUS_DEBUG') or define('GENIUS_DEBUG', false);
     defined('GENIUS_ROOT') or define('GENIUS_ROOT', __DIR__);
@@ -24,14 +25,9 @@ namespace {
     {
         protected static $aliases = [];
 
-        public static function init()
-        {
-        }
-
         /**
          * @param string $format
          * @param array $args
-         * @return string
          */
         public static function printf($format, $args)
         {
@@ -40,12 +36,12 @@ namespace {
                 $format = str_replace('{' . $assoc . '}', strval($value), $format);
             }
 
-            return $format;
+            echo $format;
         }
 
         /**
          * @param string $alias
-         * @return null|string
+         * @return string
          */
         public static function getAlias($alias)
         {
@@ -69,13 +65,16 @@ namespace {
 
         /**
          * @param string $env [optional]
-         * @return Object
+         * @return void
          */
-        public static function userConfig($env = null)
+        public static function userConfig($env = APP_ENV)
         {
-            $object = new Object();
-            $object->parameters = new Object();
-            return $object;
+            $env = strval($env);
+            $list = [];
+            $file = APP_ROOT . '/config/config.php';
+            if(is_file($file)) $list = require($file);
+            $object = new Object($list);
+            return $object->get($env);
         }
     }
 
@@ -142,7 +141,7 @@ namespace Genius {
     use Genius\View\Compiler;
     use Genius\Exception\Assoc;
 
-    abstract class Application extends Genius
+    abstract class Application
     {
         private static $stack = [];
         public $controllerID = null;
@@ -210,9 +209,25 @@ namespace Genius {
 
     class Object {
 
-        public function __construct()
+        /**
+         * @param array $arguments [optional]
+         */
+        public function __construct(array $arguments = [])
         {
+            if($arguments) {
+                foreach ($arguments as $ptr => $val) {
+                    $this->$ptr = (is_array($val) ? new static($val) : $val);
+                }
+            }
+        }
 
+        /**
+         * @param string $name
+         * @return void
+         */
+        public function get($name)
+        {
+            return property_exists($this, $name) ? $this->$name : null;
         }
     }
 
@@ -278,7 +293,7 @@ namespace Genius\Event {
             Application::elapsed('time');
             Application::elapsed('memory');
 
-            Application::setAlias('@root', APP_ROOT);
+            Genius::setAlias('@root', APP_ROOT);
             date_default_timezone_set('Asia/Shanghai');
 
             set_error_handler([__CLASS__, 'error']);
@@ -320,7 +335,7 @@ namespace Genius\Event {
                 }
             }
 
-            echo Genius::printf('<!doctype html>
+            Genius::printf('<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">

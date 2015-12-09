@@ -8,6 +8,8 @@
 
 namespace {
 
+    use Genius\Object;
+
     ini_set('display_errors', true);
     error_reporting(E_ALL);
 
@@ -64,12 +66,21 @@ namespace {
         {
             self::$aliases[$alias] = $path;
         }
+
+        /**
+         * @param string $env [optional]
+         * @return Object
+         */
+        public static function userConfig($env = null)
+        {
+            $object = new Object();
+            $object->parameters = new Object();
+            return $object;
+        }
     }
 
     abstract class Data
     {
-
-
         const UNIT_STORAGE = 0x1;
         const UNIT_TIME = 0x2;
 
@@ -82,30 +93,43 @@ namespace {
         public static function convert($number, $convert = self::UNIT_STORAGE, $fixed = 7)
         {
             $i = 0;
-            switch($convert)
-            {
+            switch ($convert) {
                 case self::UNIT_STORAGE:
                     $unit = ['Byte', 'KB', 'MB', 'GB', 'TB', 'PB'];
-                    while($number >= 1024)
-                    {
+                    while ($number >= 1024) {
                         $number /= 1024;
                         $i++;
                     }
-                    return sprintf('%.'.$fixed.'f', $number) . $unit[$i];
+                    return sprintf('%.' . $fixed . 'f', $number) . $unit[$i];
                     break;
                 case self::UNIT_TIME:
                     $unit = ['ms', 's', 'minutes', 'hours', 'day'];
                     $offset = 1000;
-                    while($number >= $offset)
-                    {
+                    while ($number >= $offset) {
                         $number /= $offset;
                         $i++;
-                        if($i >= 4) $i = 4;
+                        if ($i >= 4) $i = 4;
                         $offset = $i < 4 ? 60 : 12;
                     }
-                    return sprintf('%.'.$fixed.'f', $number) . $unit[$i];
+                    return sprintf('%.' . $fixed . 'f', $number) . $unit[$i];
                     break;
             }
+        }
+
+    }
+
+    class InlineAction
+    {
+        public $action = null;
+
+        /**
+         * @param Genius\Controller $e
+         * @param string $action
+         * @param array $parameters
+         */
+        public function __construct(Genius\Controller $e, $action, array $parameters = [])
+        {
+            // new InlineAction($this, $action, $arguments);
         }
 
     }
@@ -135,8 +159,8 @@ namespace Genius {
         {
             Passer::run();
             require APP_ROOT . '/controllers/index.class.php';
-            $controllerID = '\\controllers\\index';
-            (new $controllerID())->prepare([])->execute();
+            $controllerID = '\\Controllers\\Index';
+            (new $controllerID())->prepare(['index', [] ])->execute();
         }
 
         /**
@@ -150,8 +174,7 @@ namespace Genius {
                 throw new Assoc($assoc);
             }
 
-            switch ($assoc)
-            {
+            switch ($assoc) {
                 case 'time':
                     if (empty(self::$stack[$assoc])) return self::$stack[$assoc] = round(microtime(true) * 1000);
                     $now = round(microtime(true) * 1000);
@@ -162,7 +185,7 @@ namespace Genius {
                     break;
             }
 
-            return (float) round($now - self::$stack[$assoc]);
+            return (float)round($now - self::$stack[$assoc]);
 
         }
     }
@@ -185,6 +208,14 @@ namespace Genius {
         abstract public function execute();
     }
 
+    class Object {
+
+        public function __construct()
+        {
+
+        }
+    }
+
 }
 
 namespace Genius\Controller {
@@ -195,15 +226,33 @@ namespace Genius\Controller {
     {
         public function prepare($group)
         {
-            self::$controllerID = 'index';
-            self::$actionID = 'index';
+            list($actionID, $arguments) = $group;
+            if (method_exists($this, '__initialize')) $this->__initialize();
+            $method = new \ReflectionMethod($this, $actionID);
+            $ptr = [];
+            $missing = [];
 
-            $this->index();
+            foreach ($method->getParameters() as $parameters) {
+                $name = $parameters->getName();
+                if (array_key_exists($name, $arguments)) {
+                    $ptr[] = $arguments[$name];
+                } elseif ($parameters->isDefaultValueAvailable()) {
+                    $ptr[] = $parameters->getDefaultValue();
+                } else {
+                    $missing = [];
+                }
+            }
+
+            if ($missing) throw new MissingParameters();
+            $result = call_user_func_array([$this, $actionID], $ptr);
+            $returnType = strtolower(gettype($result));
+            $this->text = ob_get_clean() . strval($result);
             return $this;
         }
 
         public function execute()
         {
+            echo $this->text;
         }
     }
 
@@ -330,17 +379,17 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 </div>
 </body>
 </html>', [
-            'datetime' => $datetime,
-            'level' => $level,
-            'message' => $e->getMessage(),
-            'list' => implode($list),
-            'genius_version' => GENIUS_VERSION,
-            'php_version' => PHP_VERSION,
-            'status' => 'highlight',
-            'code' => 500,
-            'route' => 'index/index',
-            'memory' => \Data::convert(Application::elapsed('memory'), \Data::UNIT_STORAGE, 2),
-            'time' => \Data::convert(Application::elapsed('time'), \Data::UNIT_TIME, 0)
+                'datetime' => $datetime,
+                'level' => $level,
+                'message' => $e->getMessage(),
+                'list' => implode($list),
+                'genius_version' => GENIUS_VERSION,
+                'php_version' => PHP_VERSION,
+                'status' => 'highlight',
+                'code' => 500,
+                'route' => 'index/index',
+                'memory' => \Data::convert(Application::elapsed('memory'), \Data::UNIT_STORAGE, 2),
+                'time' => \Data::convert(Application::elapsed('time'), \Data::UNIT_TIME, 0)
             ]);
             exit; //中止脚本
 
@@ -380,6 +429,10 @@ namespace Genius\Exception {
     {
     }
 
+    class MissingParameters extends ErrorException
+    {
+    }
+
     class PHPVersion extends ErrorException
     {
         /**
@@ -404,5 +457,6 @@ namespace Genius\View {
 
     abstract class Compiler extends Application
     {
+        public $text = null;
     }
 }

@@ -1,18 +1,22 @@
 <?php
 
 /**
- * User: howay
- * Date: 2015/12/7 0007
- * Time: 10:32
+ * User: Howay
+ * Date: 2015/12/5 0005
+ * Time: 12:29
  */
 
-namespace controllers;
+
+namespace Controllers;
+
+use Genius;
 use Genius\Controller\General as Controller;
 
-class index extends Controller
+class Index extends Controller
 {
     public function index()
     {
-        var_dump($this->controllerID);
+        var_dump($this);
     }
+
 }

@@ -9,6 +9,7 @@
 namespace {
 
     use Genius\Object;
+    use Genius\Exception\IOException;
 
     ini_set('display_errors', true);
     error_reporting(E_ALL);
@@ -37,6 +38,16 @@ namespace {
             }
 
             echo $format;
+        }
+
+        public static function sprintf()
+        {
+            if (ob_get_length()) {
+                ob_end_flush();
+                ob_end_clean();
+            }
+            call_user_func_array([__CLASS__, 'printf'], func_get_args());
+            return ob_get_clean();
         }
 
         /**
@@ -71,10 +82,9 @@ namespace {
         public static function userConfig($env = APP_ENV)
         {
             $env = strval($env);
-            $list = [];
-            $file = APP_ROOT . '/config/config.php';
-            if(!is_file($file)) throw new IOException;
-            $list = require($file);
+            $file = APP_ROOT . '/config/configxxxx.php';
+            if (!is_file($file)) throw new IOException(\Genius::sprintf('File not found {file}', ['file' => $file]));
+            $list = (array) require($file);
             $object = new Object($list);
             return $object->get($env);
         }
@@ -114,6 +124,8 @@ namespace {
                     }
                     return sprintf('%.' . $fixed . 'f', $number) . $unit[$i];
                     break;
+                default:
+                    return null;
             }
         }
 
@@ -149,50 +161,59 @@ namespace Genius {
         public $controllerID = null;
         public $actionID = null;
 
-        public function __construct()
-        {
-        }
-
-        /**
-         * @return void
-         */
         public static function init()
         {
             Passer::run();
+            /*$file = APP_ROOT . '/controllers/index.class.php';
+            if(!is_file($file)) throw new Genius\Exception\IOException();
+
             require APP_ROOT . '/controllers/index.class.php';
             $controllerID = '\\Controllers\\Index';
-            (new $controllerID())->prepare(['index', [] ])->execute();
+
+            if(!class_exists($controllerID)) throw new Genius\Exception\SourceException();
+
+            (new $controllerID())->prepare(['index', []])->execute();*/
+
+            list($controllerID, $actionID, $parameters) = Route::transform();
+            (new $controllerID)->prepare($actionID, $parameters)->execute();
         }
 
         /**
-         * @param string $AssocException
+         * @param string $assoc
          * @throws Genius\Exception\AssocException
          * @return float
          */
-        public static function elapsed($AssocException)
+        public static function elapsed($assoc)
         {
-            if (!in_array($AssocException, ['time', 'memory'])) {
-                throw new AssocException($AssocException);
-            }
+            if (!in_array($assoc, ['time', 'memory'])) throw new AssocException($assoc);
 
-            switch ($AssocException) {
+            switch ($assoc) {
                 case 'time':
-                    if (empty(self::$stack[$AssocException])) return self::$stack[$AssocException] = round(microtime(true) * 1000);
+                    if (empty(self::$stack[$assoc])) return self::$stack[$assoc] = round(microtime(true) * 1000);
                     $now = round(microtime(true) * 1000);
                     break;
                 case 'memory':
-                    if (empty(self::$stack[$AssocException])) return self::$stack[$AssocException] = memory_get_usage();
+                    if (empty(self::$stack[$assoc])) return self::$stack[$assoc] = memory_get_usage();
                     $now = memory_get_usage();
                     break;
             }
 
-            return (float)round($now - self::$stack[$AssocException]);
+            return (float)round($now - self::$stack[$assoc]);
 
         }
     }
 
     abstract class Route
     {
+        public $controllerID;
+        public $actionID;
+        public $parameters;
+
+        public static function transform()
+        {
+
+        }
+
     }
 
     abstract class Controller extends Compiler
@@ -209,14 +230,15 @@ namespace Genius {
         abstract public function execute();
     }
 
-    class Object {
+    class Object
+    {
 
         /**
          * @param array $arguments [optional]
          */
         public function __construct(array $arguments = [])
         {
-            if($arguments) {
+            if ($arguments) {
                 foreach ($arguments as $ptr => $val) {
                     $this->$ptr = (is_array($val) ? new static($val) : $val);
                 }
@@ -310,7 +332,7 @@ namespace Genius\Event {
 
         public static function exception($e)
         {
-            if(ob_get_length()) ob_clean();
+            if (ob_get_length()) ob_clean();
             $severity = $e->getSeverity();
             $datetime = date('Y-m-d H:i:s');
 
@@ -326,6 +348,10 @@ namespace Genius\Event {
                 case E_ERROR:
                 case E_USER_ERROR:
                     $level = 'error';
+                    break;
+                case E_DEPRECATED:
+                case E_USER_DEPRECATED:
+                    $level = 'deprecated';
                     break;
                 default:
                     $level = 'info';
@@ -347,10 +373,10 @@ namespace Genius\Event {
 <style type="text/css">
 body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px}
 .hide{display:none;}
-.exception{min-width:700px;box-sizing:border-box;background:#eee;display:inline-block;}
+.exception{min-width:700px;max-width:750px;box-sizing:border-box;background:#eee;display:inline-block;}
 .inside{padding:0 20px 10px 20px;}
 .exception h1{margin:0;padding:35px 20px 20px 20px;line-height:20px;position:relative;display:block;font-weight:normal;color:#f00;font-size:20px;border-bottom:solid 1px #ccc;}
-.exception h1 span{position:absolute;right:20px;background:#ccc;padding:4px 10px;color:#fff;font-size:.5rem;line-height:1;}
+.exception h1 span{position:absolute;right:20px;background:#ccc;padding:4px 10px;color:#666;font-size:.5rem;line-height:1;}
 .fixed {font-size:12px;display:block;background:#e0e0e0;margin:0;padding:0 20px;list-style:none;border-top:solid 1px #ddd;}
 .fixed li{padding:10px 0;line-height:20px;height:20px;color:#444;display:inline-block;margin-right:10px;}
 .fixed li span{display:inline-block;font-size:12px;line-height:16px;height:16px;margin:2px 0 2px 10px;border-radius:2px;padding:0 10px;background:#999;color:#fff;}
@@ -365,6 +391,7 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 .exception span.notice{background:#090;}
 .exception span.warning{background:#e90;}
 .exception span.error{background:#e00;}
+.exception span.deprecated{background:#c60;text-decoration:line-through;}
 .exception .footer{color:#444;font-style:italic;}
 .exception .footer .breakpoint{}
 .exception .footer ul.list{padding-left:30px;}
@@ -390,7 +417,7 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 <ul class="fixed">
 <li><label>Genius</label><span>{genius_version}</span></li>
 <li><label>PHP</label><span>{php_version}</span></li>
-<li><label>Status</label><span class="{status}">{code}</span></li>
+<li><label>Status</label><span class="highlight">500</span></li>
 <li><label>Route</label><span>{route}</span></li>
 <li><label>Memory</label><span>{memory}</span></li>
 <li><label>Time</label><span>{time}</span></li>
@@ -404,8 +431,6 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
                 'list' => implode($list),
                 'genius_version' => GENIUS_VERSION,
                 'php_version' => PHP_VERSION,
-                'status' => 'highlight',
-                'code' => 500,
                 'route' => 'index/index',
                 'memory' => \Data::convert(Application::elapsed('memory'), \Data::UNIT_STORAGE, 2),
                 'time' => \Data::convert(Application::elapsed('time'), \Data::UNIT_TIME, 0)
@@ -432,6 +457,10 @@ namespace Genius\Exception {
 
     use Exception;
     use ErrorException;
+
+    class SourceException extends ErrorException
+    {
+    }
 
     class AssocException extends ErrorException
     {

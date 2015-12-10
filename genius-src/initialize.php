@@ -9,7 +9,7 @@
 namespace {
 
     use Genius\Object;
-    use Genius\Exception\IOException;
+    use Genius\Exception\InvaildException;
 
     ini_set('display_errors', true);
     error_reporting(E_ALL);
@@ -32,9 +32,9 @@ namespace {
          */
         public static function printf($format, $args)
         {
-            foreach ($args as $AssocException => $value) {
+            foreach ($args as $assoc => $value) {
                 if (!is_numeric($value) && !is_string($value)) continue;
-                $format = str_replace('{' . $AssocException . '}', strval($value), $format);
+                $format = str_replace('{' . $assoc . '}', strval($value), $format);
             }
 
             echo $format;
@@ -43,8 +43,7 @@ namespace {
         public static function sprintf()
         {
             if (ob_get_length()) {
-                ob_end_flush();
-                ob_end_clean();
+                ob_clean();
             }
             call_user_func_array([__CLASS__, 'printf'], func_get_args());
             return ob_get_clean();
@@ -75,16 +74,17 @@ namespace {
         }
 
         /**
-         * @param string $env [optional]
-         * @throws Genius\Exception\IOException
+         * @param null|string $env
+         * @throws InvaildException
          * @return void
          */
         public static function userConfig($env = APP_ENV)
         {
             $env = strval($env);
-            $file = APP_ROOT . '/config/configxxxx.php';
-            if (!is_file($file)) throw new IOException(\Genius::sprintf('File not found {file}', ['file' => $file]));
-            $list = (array) require($file);
+            $file = APP_ROOT . '/config/config.php';
+            if (!is_file($file)) throw new InvaildException(Genius::sprintf('File not found {file}', ['file' => $file]));
+            $list = require(APP_ROOT . '/config/config.php');
+            if(!is_array($list)) throw new InvaildException('Configuration file to return type must be an array');
             $object = new Object($list);
             return $object->get($env);
         }
@@ -153,13 +153,12 @@ namespace Genius {
     use Genius;
     use Genius\Event\Passer;
     use Genius\View\Compiler;
-    use Genius\Exception\AssocException;
+    use Genius\Exception\InvaildException;
 
     abstract class Application
     {
         private static $stack = [];
-        public $controllerID = null;
-        public $actionID = null;
+        public static $route = null;
 
         public static function init()
         {
@@ -174,18 +173,27 @@ namespace Genius {
 
             (new $controllerID())->prepare(['index', []])->execute();*/
 
-            list($controllerID, $actionID, $parameters) = Route::transform();
-            (new $controllerID)->prepare($actionID, $parameters)->execute();
+            /*list($controllerID, $actionID, $parameters) = Route::transform();
+            (new $controllerID)->prepare($actionID, $parameters)->execute();*/
+
+            Route::transform();
+            $file = APP_ROOT . '/controllers/index.class.php';
+            if(!is_file($file)) throw new Genius\Exception\InvaildException();
+            require APP_ROOT . '/controllers/index.class.php';
+
+            $controllerID = '\\Controllers\\Index';
+            (new $controllerID())->prepare(['index', []])->execute();
+
         }
 
         /**
          * @param string $assoc
-         * @throws Genius\Exception\AssocException
+         * @throws Genius\Exception\InvaildException
          * @return float
          */
         public static function elapsed($assoc)
         {
-            if (!in_array($assoc, ['time', 'memory'])) throw new AssocException($assoc);
+            if (!in_array($assoc, ['time', 'memory'])) throw new InvaildException($assoc);
 
             switch ($assoc) {
                 case 'time':
@@ -203,11 +211,12 @@ namespace Genius {
         }
     }
 
-    abstract class Route
+    final class Route
     {
         public $controllerID;
         public $actionID;
         public $parameters;
+        public $namespace;
 
         public static function transform()
         {
@@ -259,13 +268,22 @@ namespace Genius {
 
 namespace Genius\Controller {
 
+    use Genius\Object;
     use Genius\Controller;
+    use Genius\Exception\InvaildException;
 
     abstract class General extends Controller
     {
         public function prepare($group)
         {
             list($actionID, $arguments) = $group;
+
+            $group = explode('\\', get_class($this));
+            $controllerID = array_pop($group);
+            $namespace = implode('\\', $group);
+
+            parent::$route = new Object(['controllerID' => $controllerID, 'actionID' => $actionID, 'namespace' => $namespace, 'parameters' => $arguments]);
+
             if (method_exists($this, '__initialize')) $this->__initialize();
             $method = new \ReflectionMethod($this, $actionID);
             $ptr = [];
@@ -282,10 +300,14 @@ namespace Genius\Controller {
                 }
             }
 
-            if ($missing) throw new ParametersException();
+            if ($missing) throw new InvaildException();
             $result = call_user_func_array([$this, $actionID], $ptr);
-            $returnType = strtolower(gettype($result));
-            $this->text = ob_get_clean() . strval($result);
+            if($result) if(!is_numeric($result) && !is_string($result)) throw new InvaildException(\Genius::sprintf('Method {namespace}\{controllerID}::{actionID}() return data type error', [
+                'namespace' => $namespace,
+                'controllerID' => $controllerID,
+                'actionID' => $actionID
+            ]));
+            $this->text = ob_get_clean() . ($result ? strval($result) : '');
             return $this;
         }
 
@@ -326,14 +348,13 @@ namespace Genius\Event {
             set_exception_handler([__CLASS__, 'exception']);
             register_shutdown_function([__CLASS__, 'shutdown']);
 
-            $version = '5.4.0';
-            if (version_compare(PHP_VERSION, $version, '<')) throw new PHPVersionException($version);
+            if (version_compare(PHP_VERSION, '5.4.0', '<')) throw new PHPVersionException('5.4.0');
         }
 
         public static function exception($e)
         {
             if (ob_get_length()) ob_clean();
-            $severity = $e->getSeverity();
+            $severity = !method_exists($e, 'getSeverity') ? E_ERROR : $e->getSeverity();
             $datetime = date('Y-m-d H:i:s');
 
             switch (error_reporting() & $severity) {
@@ -431,7 +452,7 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
                 'list' => implode($list),
                 'genius_version' => GENIUS_VERSION,
                 'php_version' => PHP_VERSION,
-                'route' => 'index/index',
+                'route' => sprintf('%s/%s', Application::$route->controllerID, Application::$route->actionID),
                 'memory' => \Data::convert(Application::elapsed('memory'), \Data::UNIT_STORAGE, 2),
                 'time' => \Data::convert(Application::elapsed('time'), \Data::UNIT_TIME, 0)
             ]);
@@ -455,39 +476,13 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 
 namespace Genius\Exception {
 
-    use Exception;
     use ErrorException;
 
-    class SourceException extends ErrorException
-    {
-    }
-
-    class AssocException extends ErrorException
-    {
-    }
-
-    class ParametersException extends ErrorException
+    class InvaildException extends ErrorException
     {
     }
 
     class PHPVersionException extends ErrorException
-    {
-        /**
-         * Constructs the ErrorException
-         * @param string $message [optional]
-         * @param int $code [optional]
-         * @param int $severity [optional]
-         * @param string $filename [optional]
-         * @param int $lineno [optional]
-         * @param Exception $previous [optional]
-         */
-        public function __construct($message = "", $code = 0, $severity = 1, $filename = __FILE__, $lineno = __LINE__, $previous = NULL)
-        {
-            parent::__construct('PHP version not less than ' . $message, $code, $severity, $filename, $lineno, $previous);
-        }
-    }
-
-    class IOException extends ErrorException
     {
     }
 }

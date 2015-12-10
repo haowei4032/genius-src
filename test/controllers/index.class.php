@@ -16,7 +16,7 @@ class Index extends Controller
 {
     public function index()
     {
-        var_dump($this);
+        return Genius::getAlias('@runtime');
     }
 
 }

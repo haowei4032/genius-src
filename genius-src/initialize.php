@@ -84,7 +84,7 @@ namespace {
             $file = APP_ROOT . '/config/config.php';
             if (!is_file($file)) throw new InvaildException(Genius::sprintf('File not found {file}', ['file' => $file]));
             $list = require(APP_ROOT . '/config/config.php');
-            if(!is_array($list)) throw new InvaildException('Configuration file to return type must be an array');
+            if (!is_array($list)) throw new InvaildException('Configuration file to return type must be an array');
             $object = new Object($list);
             return $object->get($env);
         }
@@ -158,7 +158,7 @@ namespace Genius {
     abstract class Application
     {
         private static $stack = [];
-        public static $route = null;
+        public static $route;
 
         public static function init()
         {
@@ -176,13 +176,15 @@ namespace Genius {
             /*list($controllerID, $actionID, $parameters) = Route::transform();
             (new $controllerID)->prepare($actionID, $parameters)->execute();*/
 
-            Route::transform();
-            $file = APP_ROOT . '/controllers/index.class.php';
-            if(!is_file($file)) throw new Genius\Exception\InvaildException();
-            require APP_ROOT . '/controllers/index.class.php';
+            list($controller, $actionID, $arguments) = Route::transform();
+
+            $file = APP_ROOT . '/controllers/' . $controller . '.class.php';
+            if (!is_file($file)) throw new Genius\Exception\InvaildException();
+            require APP_ROOT . '/controllers/' . $controller . '.class.php';
 
             $controllerID = '\\Controllers\\Index';
-            (new $controllerID())->prepare(['index', []])->execute();
+            if (!class_exists($controllerID)) throw new Genius\Exception\InvaildException();
+            (new $controllerID())->prepare([$actionID, $arguments])->execute();
 
         }
 
@@ -213,14 +215,103 @@ namespace Genius {
 
     final class Route
     {
-        public $controllerID;
-        public $actionID;
-        public $parameters;
-        public $namespace;
+        public static $controllerID;
+        public static $actionID;
+        public static $parameters;
+        public static $namespace;
 
+        /**
+         * @return array
+         */
         public static function transform()
         {
+            $URI = (string)(strpos($_SERVER['REQUEST_URI'], '?') !== false ?
+                strstr($_SERVER['REQUEST_URI'], '?', true) :
+                $_SERVER['REQUEST_URI']);
 
+            $controllerID = 'index';
+            $actionID = 'index';
+            $arguments = [];
+
+
+            $find = false;
+            $compile_rules = static::compile();
+
+            foreach ($compile_rules as $pattern => $group) {
+
+                if (preg_match('/^' . $pattern . '$/', $URI, $matches)) {
+                    $find = true;
+                    array_shift($matches);
+                    foreach ($group['arguments'] as $k => $assoc) {
+                        $arguments[$assoc] = $matches[$k];
+                    }
+
+                    $controllerID = $group['controllerID'];
+                    $actionID = $group['actionID'];
+                    break;
+                }
+            }
+
+            if (!$find) {
+
+                if (preg_match('/\/(.+?)\/(.+)/', $URI, $matches)) {
+                    array_shift($matches);
+                    list($controllerID, $actionID) = $matches;
+                    $arguments = $_GET;
+                }
+
+            }
+
+
+            return [
+                self::$controllerID = $controllerID,
+                self::$actionID = $actionID,
+                self::$parameters = $arguments];
+
+        }
+
+        private static function compile()
+        {
+            $rules = [];
+            if (!empty(Genius::userConfig()->components->url->rules)) {
+                $rules = (array)Genius::userConfig()->components->url->rules;
+            }
+
+            $compile_rules = [];
+
+            foreach ($rules as $pattern => $path) {
+                $pattern = self::filter($pattern);
+                $arguments = [];
+                if (preg_match_all('/\<(.+?)\:(.+?)\>/', $pattern, $matches)) {
+                    list($finder, $parameter, $regexp) = $matches;
+                    foreach ($finder as $k => $str) {
+                        $pattern = sprintf(preg_quote(str_replace($str, '%s', $pattern), '/'), '(' . $regexp[$k] . ')');
+                        $arguments[] = $parameter[$k];
+                    }
+                } else {
+
+                    $pattern = preg_quote($pattern, '/');
+
+                }
+
+                list($controllerID, $actionID) = explode('/', $path);
+                $compile_rules[$pattern] = [
+                    'arguments' => $arguments,
+                    'controllerID' => $controllerID,
+                    'actionID' => $actionID
+                ];
+            }
+
+            return $compile_rules;
+        }
+
+        private static function filter($pattern)
+        {
+            $group = explode('/', $pattern);
+            foreach ($group as $k => $v) {
+                if (empty($group[$k])) unset($group[$k]);
+            }
+            return sprintf('/%s', implode($group));
         }
 
     }
@@ -302,7 +393,7 @@ namespace Genius\Controller {
 
             if ($missing) throw new InvaildException();
             $result = call_user_func_array([$this, $actionID], $ptr);
-            if($result) if(!is_numeric($result) && !is_string($result)) throw new InvaildException(\Genius::sprintf('Method {namespace}\{controllerID}::{actionID}() return data type error', [
+            if ($result) if (!is_numeric($result) && !is_string($result)) throw new InvaildException(\Genius::sprintf('Method {namespace}\{controllerID}::{actionID}() return data type error', [
                 'namespace' => $namespace,
                 'controllerID' => $controllerID,
                 'actionID' => $actionID
@@ -342,7 +433,10 @@ namespace Genius\Event {
             Genius::setAlias('@root', APP_ROOT);
             Genius::setAlias('@runtime', APP_ROOT . '/runtime');
 
-            date_default_timezone_set('Asia/Shanghai');
+            $timezone = !empty(Genius::userConfig()->parameters->timezone) ?
+                Genius::userConfig()->parameters->timezone :
+                'Asia/Shanghai';
+            date_default_timezone_set($timezone);
 
             set_error_handler([__CLASS__, 'error']);
             set_exception_handler([__CLASS__, 'exception']);
@@ -353,7 +447,7 @@ namespace Genius\Event {
 
         public static function exception($e)
         {
-            if (ob_get_length()) ob_clean();
+            //if (ob_get_length()) ob_clean();
             $severity = !method_exists($e, 'getSeverity') ? E_ERROR : $e->getSeverity();
             $datetime = date('Y-m-d H:i:s');
 
@@ -452,7 +546,7 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
                 'list' => implode($list),
                 'genius_version' => GENIUS_VERSION,
                 'php_version' => PHP_VERSION,
-                'route' => sprintf('%s/%s', Application::$route->controllerID, Application::$route->actionID),
+                'route' => sprintf('%s/%s', Genius\Route::$controllerID, Genius\Route::$actionID),
                 'memory' => \Data::convert(Application::elapsed('memory'), \Data::UNIT_STORAGE, 2),
                 'time' => \Data::convert(Application::elapsed('time'), \Data::UNIT_TIME, 0)
             ]);

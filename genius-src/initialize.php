@@ -32,8 +32,8 @@ namespace {
         }
 
         /**
-         * @param $format
-         * @param $args
+         * @param string $format
+         * @param array $args
          * @return string
          */
         public static function sprintf($format, $args)

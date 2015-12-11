@@ -11,13 +11,25 @@ return [
     'alpha' => [
 
         'parameters' => [
-            'id' => 1
+            'timezone' => 'Asia/Shanghai'
         ],
 
         'components' => [
 
             'log' => [
-                'class' => 'Genius\Log\File'
+                'class' => 'Genius\Log\File',
+            ],
+
+            'url' => [
+
+                'enablePrettyUrl' => true,
+                'showScriptName' => false,
+                'rules' => [
+
+                    '/abc' => 'index/index',
+                    '/ccc' => 'bbb/ccc'
+
+                ]
             ]
         ]
 

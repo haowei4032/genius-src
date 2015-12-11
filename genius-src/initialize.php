@@ -82,12 +82,30 @@ namespace {
         {
             $env = strval($env);
             $file = APP_ROOT . '/config/config.php';
-            if (!is_file($file)) throw new InvaildException(Genius::sprintf('File not found {file}', ['file' => $file]));
+            if (!is_file($file)) throw new InvaildException(sprintf('File not found %s', $file));
             $list = require(APP_ROOT . '/config/config.php');
             if (!is_array($list)) throw new InvaildException('Configuration file to return type must be an array');
             $object = new Object($list);
             return $object->get($env);
         }
+
+        /**
+         * @return string
+         */
+        public static function parseURI()
+        {
+            $subdirectory =
+                dirname($_SERVER['SCRIPT_FILENAME']) === $_SERVER['DOCUMENT_ROOT'] ?
+                    '' :
+                    substr(dirname($_SERVER['SCRIPT_FILENAME']), strlen($_SERVER['DOCUMENT_ROOT']));
+
+            $uri = strval(strpos($_SERVER['REQUEST_URI'], '?') !== false ?
+                strstr($_SERVER['REQUEST_URI'], '?', true) :
+                $_SERVER['REQUEST_URI']);
+
+            return substr($uri, strlen($subdirectory));
+        }
+
     }
 
     abstract class Data
@@ -163,26 +181,13 @@ namespace Genius {
         public static function init()
         {
             Passer::run();
-            /*$file = APP_ROOT . '/controllers/index.class.php';
-            if(!is_file($file)) throw new Genius\Exception\IOException();
-
-            require APP_ROOT . '/controllers/index.class.php';
-            $controllerID = '\\Controllers\\Index';
-
-            if(!class_exists($controllerID)) throw new Genius\Exception\SourceException();
-
-            (new $controllerID())->prepare(['index', []])->execute();*/
-
-            /*list($controllerID, $actionID, $parameters) = Route::transform();
-            (new $controllerID)->prepare($actionID, $parameters)->execute();*/
 
             list($controller, $actionID, $arguments) = Route::transform();
-
             $file = APP_ROOT . '/controllers/' . $controller . '.class.php';
-            if (!is_file($file)) throw new Genius\Exception\InvaildException();
+            if (!is_file($file)) throw new Genius\Exception\InvaildException(sprintf('Class Controllers\%s not found', ucfirst($controller)));
             require APP_ROOT . '/controllers/' . $controller . '.class.php';
 
-            $controllerID = '\\Controllers\\Index';
+            $controllerID = '\\Controllers\\' . ucfirst($controller);
             if (!class_exists($controllerID)) throw new Genius\Exception\InvaildException();
             (new $controllerID())->prepare([$actionID, $arguments])->execute();
 
@@ -221,18 +226,15 @@ namespace Genius {
         public static $namespace;
 
         /**
+         * @throws InvaildException
          * @return array
          */
         public static function transform()
         {
-            $URI = (string)(strpos($_SERVER['REQUEST_URI'], '?') !== false ?
-                strstr($_SERVER['REQUEST_URI'], '?', true) :
-                $_SERVER['REQUEST_URI']);
-
+            $URI = Genius::parseURI();
             $controllerID = 'index';
             $actionID = 'index';
             $arguments = [];
-
 
             $find = false;
             $compile_rules = static::compile();
@@ -262,10 +264,21 @@ namespace Genius {
 
             }
 
+            $controllerID = strtolower($controllerID);
+            $actionID = strtolower($actionID);
+
+            if (!preg_match('/^[a-zAZ_]/', $controllerID)) {
+                throw new Genius\Exception\InvaildException(sprintf('Controllers\%s() class name must be in [a-zA-Z_] at the beginning of any string', ucfirst($controllerID)));
+            }
+
+            if (!preg_match('/^[a-zAZ_]/', $actionID)) {
+                throw new Genius\Exception\InvaildException(sprintf('Controllers\%s::%s() method name must be in [a-zA-Z_] at the beginning of any string', ucfirst($controllerID), $actionID));
+            }
+
 
             return [
                 self::$controllerID = $controllerID,
-                self::$actionID = $actionID,
+                self::$actionID = strtolower($actionID),
                 self::$parameters = $arguments];
 
         }
@@ -309,7 +322,7 @@ namespace Genius {
         {
             $group = explode('/', $pattern);
             foreach ($group as $k => $v) {
-                if (empty($group[$k])) unset($group[$k]);
+                if (empty($v)) unset($group[$k]);
             }
             return sprintf('/%s', implode($group));
         }
@@ -359,6 +372,7 @@ namespace Genius {
 
 namespace Genius\Controller {
 
+    use Genius;
     use Genius\Object;
     use Genius\Controller;
     use Genius\Exception\InvaildException;
@@ -393,7 +407,7 @@ namespace Genius\Controller {
 
             if ($missing) throw new InvaildException();
             $result = call_user_func_array([$this, $actionID], $ptr);
-            if ($result) if (!is_numeric($result) && !is_string($result)) throw new InvaildException(\Genius::sprintf('Method {namespace}\{controllerID}::{actionID}() return data type error', [
+            if ($result) if (!is_numeric($result) && !is_string($result)) throw new InvaildException(Genius::sprintf('Method {namespace}\{controllerID}::{actionID}() return data type error', [
                 'namespace' => $namespace,
                 'controllerID' => $controllerID,
                 'actionID' => $actionID
@@ -427,16 +441,19 @@ namespace Genius\Event {
     {
         public static function run()
         {
+            $timezone = !empty(Genius::userConfig()->parameters->timezone) ?
+                Genius::userConfig()->parameters->timezone :
+                'Asia/Shanghai';
+            date_default_timezone_set($timezone);
+
+            if (!empty(Genius::userConfig()->parameters->gzip))
+                ob_start(function_exists('ob_gzhandler') ? function_exists('ob_gzhandler') : null);
+
             Application::elapsed('time');
             Application::elapsed('memory');
 
             Genius::setAlias('@root', APP_ROOT);
             Genius::setAlias('@runtime', APP_ROOT . '/runtime');
-
-            $timezone = !empty(Genius::userConfig()->parameters->timezone) ?
-                Genius::userConfig()->parameters->timezone :
-                'Asia/Shanghai';
-            date_default_timezone_set($timezone);
 
             set_error_handler([__CLASS__, 'error']);
             set_exception_handler([__CLASS__, 'exception']);

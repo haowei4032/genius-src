@@ -26,27 +26,24 @@ namespace {
     {
         protected static $aliases = [];
 
+        public static function printf()
+        {
+            echo call_user_func_array([__CLASS__, 'sprintf'], func_get_args());
+        }
+
         /**
-         * @param string $format
-         * @param array $args
+         * @param $format
+         * @param $args
+         * @return string
          */
-        public static function printf($format, $args)
+        public static function sprintf($format, $args)
         {
             foreach ($args as $assoc => $value) {
                 if (!is_numeric($value) && !is_string($value)) continue;
                 $format = str_replace('{' . $assoc . '}', strval($value), $format);
             }
 
-            echo $format;
-        }
-
-        public static function sprintf()
-        {
-            if (ob_get_length()) {
-                ob_clean();
-            }
-            call_user_func_array([__CLASS__, 'printf'], func_get_args());
-            return ob_get_clean();
+            return strval($format);
         }
 
         /**
@@ -447,7 +444,7 @@ namespace Genius\Event {
             date_default_timezone_set($timezone);
 
             if (!empty(Genius::userConfig()->parameters->gzip))
-                ob_start(function_exists('ob_gzhandler') ? function_exists('ob_gzhandler') : null);
+                ob_start(function_exists('ob_gzhandler') ? 'ob_gzhandler' : '');
 
             Application::elapsed('time');
             Application::elapsed('memory');
@@ -464,7 +461,7 @@ namespace Genius\Event {
 
         public static function exception($e)
         {
-            //if (ob_get_length()) ob_clean();
+            if (ob_get_length()) ob_clean();
             $severity = !method_exists($e, 'getSeverity') ? E_ERROR : $e->getSeverity();
             $datetime = date('Y-m-d H:i:s');
 

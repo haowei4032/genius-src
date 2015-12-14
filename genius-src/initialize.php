@@ -103,6 +103,18 @@ namespace {
             return substr($uri, strlen($subdirectory));
         }
 
+        /**
+         * @param string $name
+         * @return void
+         * @throws InvaildException
+         */
+        public static function getComponents($name)
+        {
+            $components = Genius::userConfig()->components;
+            if (!property_exists($components, $name)) throw new InvaildException(sprintf('Undefined components: %s("%s")', __METHOD__, $name));
+            return $components->$name;
+        }
+
     }
 
     abstract class Data
@@ -167,7 +179,7 @@ namespace Genius {
 
     use Genius;
     use Genius\Event\Passer;
-    use Genius\View\Compiler;
+    use Genius\View\Render;
     use Genius\Exception\InvaildException;
 
     abstract class Application
@@ -326,8 +338,21 @@ namespace Genius {
 
     }
 
-    abstract class Controller extends Compiler
+    abstract class Controller extends Render
     {
+        /**
+         * @param string $view
+         * @return Genius\View\ViewRender
+         */
+        public function getView($view)
+        {
+            if (Genius::getComponents('view')) {
+                $viewrender = Genius::getComponents('view')->class;
+                new $viewrender;
+            }
+            exit;
+        }
+
         /**
          * @param array $group
          * @return $this
@@ -363,6 +388,7 @@ namespace Genius {
         {
             return property_exists($this, $name) ? $this->$name : null;
         }
+
     }
 
 }
@@ -438,13 +464,14 @@ namespace Genius\Event {
     {
         public static function run()
         {
-            $timezone = !empty(Genius::userConfig()->parameters->timezone) ?
+            date_default_timezone_set(!empty(Genius::userConfig()->get('parameters')->get('timezone')) ?
                 Genius::userConfig()->parameters->timezone :
-                'Asia/Shanghai';
-            date_default_timezone_set($timezone);
+                'Asia/Shanghai');
 
-            if (!empty(Genius::userConfig()->parameters->gzip))
-                ob_start(function_exists('ob_gzhandler') ? 'ob_gzhandler' : '');
+            spl_autoload_register([ __CLASS__, 'autoload']);
+
+            //if (!empty(Genius::userConfig()->parameters->gzip))
+            //    ob_start(function_exists('ob_gzhandler') ? 'ob_gzhandler' : '');
 
             Application::elapsed('time');
             Application::elapsed('memory');
@@ -579,6 +606,16 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
             if (in_array($error['type'], [E_USER_NOTICE, E_USER_WARNING, E_USER_ERROR, E_NOTICE, E_WARNING, E_ERROR]))
                 self::error($error['type'], $error['message'], $error['file'], $error['line']);
         }
+
+        /**
+         * @param string $class
+         */
+        public static function autoload($class)
+        {
+            $group = explode('\\', $class);
+            var_dump($group);
+            exit;
+        }
     }
 }
 
@@ -597,12 +634,19 @@ namespace Genius\Exception {
 
 namespace Genius\View {
 
+    use Genius;
     use Genius\Application;
 
-    abstract class Compiler extends Application
+    abstract class ViewRender
     {
-        public $text = null;
+        abstract public function run();
 
+        abstract public function runArgs(array $stack);
+
+    }
+
+    abstract class Render extends Application
+    {
         /**
          * @param string $view
          * @param array $parameters [optional]
@@ -610,7 +654,7 @@ namespace Genius\View {
          */
         public function render($view, array $parameters = [])
         {
-            return strval('aaaa');
+            return $this->getView($view)->runArgs($parameters);
         }
     }
 }

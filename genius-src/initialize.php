@@ -464,9 +464,8 @@ namespace Genius\Event {
     {
         public static function run()
         {
-            date_default_timezone_set(!empty(Genius::userConfig()->get('parameters')->get('timezone')) ?
-                Genius::userConfig()->parameters->timezone :
-                'Asia/Shanghai');
+            $timezone = Genius::userConfig()->get('parameters')->get('timezone');
+            date_default_timezone_set(!empty($timezone) ? Genius::userConfig()->parameters->timezone : 'Asia/Shanghai');
 
             spl_autoload_register([ __CLASS__, 'autoload']);
 

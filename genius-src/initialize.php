@@ -20,7 +20,7 @@ namespace {
     defined('GENIUS_ROOT') or define('GENIUS_ROOT', __DIR__);
 
     define('GENIUS_VERSION', '1.0');
-    define('GENIUS_COMMAND_LINE', in_array(strtolower(PHP_SAPI), ['cli']));
+    define('GENIUS_COMMAND_LINE', PHP_SAPI == 'CLI' ? true : false);
 
     abstract class Genius
     {
@@ -470,14 +470,11 @@ namespace Genius\Event {
 
             spl_autoload_register([ __CLASS__, 'autoload']);
 
-            //if (!empty(Genius::userConfig()->parameters->gzip))
-            //    ob_start(function_exists('ob_gzhandler') ? 'ob_gzhandler' : '');
-
             Application::elapsed('time');
             Application::elapsed('memory');
 
-            Genius::setAlias('@root', APP_ROOT);
-            Genius::setAlias('@runtime', APP_ROOT . '/runtime');
+            Genius::setAlias('/', GENIUS_ROOT);
+            Genius::setAlias('~', APP_ROOT);
 
             set_error_handler([__CLASS__, 'error']);
             set_exception_handler([__CLASS__, 'exception']);

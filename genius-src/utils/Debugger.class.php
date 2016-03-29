@@ -3,7 +3,6 @@
 namespace Genius\Utils;
 
 use ErrorException;
-use Genius;
 use Genius\Application;
 
 final class Debugger

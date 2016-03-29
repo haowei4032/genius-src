@@ -9,6 +9,7 @@
 namespace Genius\Utils;
 
 use ErrorException;
+use Genius;
 use Genius\Application;
 
 final class Debugger
@@ -24,16 +25,20 @@ final class Debugger
         $datetime = date('Y-m-d H:i:s');
 
         switch (error_reporting() & $severity) {
-            case E_NOTICE || E_USER_NOTICE:
+            case E_NOTICE:
+            case E_USER_NOTICE:
                 $level = 'notice';
                 break;
-            case E_WARNING || E_USER_WARNING:
+            case E_WARNING:
+            case E_USER_WARNING:
                 $level = 'warning';
                 break;
-            case E_ERROR || E_USER_ERROR:
+            case E_ERROR:
+            case E_USER_ERROR:
                 $level = 'error';
                 break;
-            case E_DEPRECATED || E_USER_DEPRECATED:
+            case E_DEPRECATED;
+            case E_USER_DEPRECATED:
                 $level = 'deprecated';
                 break;
             default:
@@ -48,7 +53,7 @@ final class Debugger
             }
         }
 
-        print Genius::sprintf('<!doctype html>
+        echo sprintf('<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -85,39 +90,38 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
 
 <body>
 <div class="exception">
-<h1><strong>Genius Exception</strong><span class="datatime">{datetime}</span></h1>
+<h1><strong>Genius Exception</strong><span class="datatime">%s</span></h1>
 <div class="inside">
-<div class="message"><span class="level {level}">{level}</span>{message}</div>
+<div class="message"><span class="level %s">%s</span>%s</div>
 <div class="footer">
 <div class="breakpoint">
 <span>Breakpoint list</span>
 <ul class="list">
-{list}
+%s
 </ul>
 </div>
 </div>
 </div>
 <ul class="fixed">
-<li><label>Genius</label><span>{genius_version}</span></li>
-<li><label>PHP</label><span>{php_version}</span></li>
+<li><label>Genius</label><span>%s</span></li>
+<li><label>PHP</label><span>%s</span></li>
 <li><label>Status</label><span class="highlight">500</span></li>
-<li><label>Route</label><span>{route}</span></li>
-<li><label>Memory</label><span>{memory}</span></li>
-<li><label>Time</label><span>{time}</span></li>
+<li><label>Route</label><span>%s</span></li>
+<li><label>Memory</label><span>%s</span></li>
+<li><label>Time</label><span>%s</span></li>
 </ul>
 </div>
 </body>
-</html>', [
-            'datetime' => $datetime,
-            'level' => $level,
-            'message' => $e->getMessage(),
-            'list' => implode($list),
-            'genius_version' => GENIUS_VERSION,
-            'php_version' => PHP_VERSION,
-            'route' => 'Index/Index',
-            'memory' => Application::elapsed('memory'),
-            'time' => Application::elapsed('time')
-        ]);
+</html>', $datetime,
+            $level,
+            $level,
+            $e->getMessage(),
+            implode($list),
+            GENIUS_VERSION,
+            PHP_VERSION,
+            'Index/Index',
+            Application::elapsed('memory'),
+            Application::elapsed('time'));
 
         ob_end_flush();
         exit;

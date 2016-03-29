@@ -1,11 +1,5 @@
 <?php
 
-/**
- * User: Howay
- * Date: 2015/12/8 0008
- * Time: 23:41
- */
-
 return [
 
     'alpha' => [
@@ -17,19 +11,11 @@ return [
         'components' => [
 
             'log' => [
-                'class' => 'Genius\Log\File',
+                'class' => 'Genius\Utils\Log',
             ],
 
             'url' => [
-
-                'enablePrettyUrl' => true,
-                'showScriptName' => false,
-                'rules' => [
-
-                    '/abc' => 'index/index',
-                    '/ccc' => 'bbb/ccc'
-
-                ]
+                '/<id:\d+>.html' => 'index/index'
             ]
         ]
 

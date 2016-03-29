@@ -1,22 +1,14 @@
 <?php
 
-/**
- * User: Howay
- * Date: 2015/12/5 0005
- * Time: 12:29
- */
-
-
 namespace Controllers;
 
 use Genius;
-use Genius\Controller\General as Controller;
+use Genius\Controller\General;
 
-class Index extends Controller
+class Index extends General
 {
-    public function index()
+    public function Index()
     {
-        return Genius::getAlias('@runtime');
+        print_r($this);
     }
-
 }

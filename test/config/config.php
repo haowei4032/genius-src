@@ -15,7 +15,7 @@ return [
             ],
 
             'url' => [
-                'index.html' => 'index/index'
+                '/<id:\d+>.html' => 'index/index'
             ]
         ]
 

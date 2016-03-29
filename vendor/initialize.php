@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * @link http://genius.haowei.me
+ * @copyright Copyright (c) 2015 Genius Software LLC
+ * @license http://genius.haowei.me/license
+ */
+
 namespace {
 
     use Genius\Object;
@@ -18,8 +24,8 @@ namespace {
 
     abstract class Genius
     {
-        private static $elapsed = [];
-        public static $aliases = [];
+        protected static $elapsed = [];
+        protected static $aliases = [];
 
         /**
          * @param string $alias
@@ -113,7 +119,7 @@ namespace Genius {
 
     abstract class Application extends Genius
     {
-        private static $elapsed = [];
+        protected static $elapsed = [];
         protected $route;
         protected $text;
 
@@ -127,7 +133,7 @@ namespace Genius {
             $timezone = Genius::userConfig()->get('parameters')->get('timezone');
             date_default_timezone_set(!empty($timezone) ? Genius::userConfig()->parameters->timezone : 'Asia/Shanghai');
 
-            spl_autoload_register([__CLASS__, 'autoload']);
+            spl_autoload_register([__CLASS__, 'autoLoad']);
 
             Genius::elapsed('time');
             Genius::elapsed('memory');
@@ -146,13 +152,12 @@ namespace Genius {
 
         }
 
-        private static function autoload($class)
+        private static function autoLoad($class)
         {
             $group = explode('\\', $class);
             list($prefix) = $group;
 
-            switch($prefix)
-            {
+            switch ($prefix) {
                 case 'Genius':
                     array_shift($group);
                     $class = array_pop($group);
@@ -219,8 +224,16 @@ namespace Genius {
 
     class Route
     {
+        protected $uri;
+        protected $parameter;
+
+        private function __construct()
+        {}
+
         public static function resolve()
         {
+            $self = new static;
+
             if (Genius::getComponents('url')) {
 
                 if (!GENIUS_COMMAND_LINE) {
@@ -232,16 +245,70 @@ namespace Genius {
                         ($offset = strpos($_SERVER['REQUEST_URI'], '?')) ?
                             substr($_SERVER['REQUEST_URI'], 0, $offset) :
                             $_SERVER['REQUEST_URI'];
-                    $URI = substr($REQUEST_URI, strlen($subdirectory));
+                    $self->uri = substr($REQUEST_URI, strlen($subdirectory));
                 } else {
                     $argv = $_SERVER['argv'];
                     array_shift($argv);
-                    $URI = count($argv) ? array_shift($argv) : '/';
+                    $self->uri = count($argv) ? array_shift($argv) : '/';
                 }
 
-                return $URI;
+                return $self;
 
             }
+
+        }
+
+        public function run()
+        {
+            $list = [];
+            $url = [];
+            if (!empty(Genius::getComponents('url'))) {
+                $url = (array)Genius::getComponents('url');
+            }
+
+            $arguments = [];
+            foreach ($url as $pattern => $path) {
+                if (preg_match_all('/\<(.+?)\:(.+?)\>/', $pattern, $matches)) {
+                    list($unused, $name, $regexp) = $matches;
+                    foreach ($unused as $key => $value) {
+                        $pattern = sprintf(preg_quote(str_replace($value, '%s', $pattern), '/'), '(' . $regexp[$key] . ')');
+                        $arguments[] = $name[$key];
+                    }
+                }
+
+                list($class, $action) = explode('/', $path);
+
+                $list[$pattern] = [
+                    'arguments' => $arguments,
+                    'class' => $class,
+                    'action' => $action];
+            }
+
+            $find = 0;
+            $arguments = [];
+            foreach ($list as $pattern => $group) {
+                if (preg_match('/^' . $pattern . '$/', $this->uri, $matches)) {
+                    $find = 1;
+                    array_shift($matches);
+                    foreach ($group['arguments'] as $k => $assoc) {
+                        $arguments[$assoc] = $matches[$k];
+                    }
+                    $class = $group['class'];
+                    $action = $group['action'];
+                    break;
+                }
+            }
+
+            if ($find) {
+                if (preg_match('/\/(.+?)\/(.+)/', $this->uri, $matches)) {
+                    array_shift($matches);
+                    list($class, $action) = $matches;
+                }
+            }
+
+            $arguments = $_GET = array_merge($arguments, $_GET);
+            $class = sprintf('Controllers\\%s', ucfirst($class));
+            return (new $class)->prepare($action, $arguments)->execute();
 
         }
 
@@ -284,6 +351,12 @@ namespace Genius\Controller {
 
     abstract class General extends Controller
     {
+        /**
+         * @param string $action
+         * @param array $parameter
+         * @return $this|bool
+         * @throws InvaildException
+         */
         public function prepare($action, $parameter)
         {
             $class = get_class($this);

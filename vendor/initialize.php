@@ -144,7 +144,7 @@ namespace Genius {
 
             Application::elapsed('time');
             Application::elapsed('memory');
-            Genius\Utils\Directory::create(Genius::getComponents('log')->get('path'));
+            Genius\Utils\Directory::create(Genius::getAlias(Genius::getComponents('log')->get('path')));
 
             set_error_handler('Genius\Utils\Debugger::Error');
             set_exception_handler('Genius\Utils\Debugger::Exception');
@@ -232,6 +232,7 @@ namespace Genius {
     class Route
     {
         protected $uri;
+        protected $arguments = [];
 
         private function __construct()
         {
@@ -268,49 +269,47 @@ namespace Genius {
         public function run()
         {
 
-            $arguments = [];
+            $this->arguments = [];
             $uri = $this->uri;
             if(($url = (array) Genius::getComponents('url'))) {
                 $list = [];
                 foreach ($url as $pattern => $path) {
-                    if (preg_match_all('/\<(.+?)\:(.+?)\>/', $pattern, $matches)) {
-                        list($unused, $name, $regexp) = $matches;
-                        foreach ($unused as $key => $value) {
-                            $pattern = sprintf(preg_quote(str_replace($value, '%s', $pattern), '/'), '\/?(' . $regexp[$key] . ')');
-                            array_push($arguments, $name[$key]);
-                        }
-                    }
-
+                    $this->arguments = [];
+                    $pattern = preg_replace_callback('/\<(.+?):(.+?)\>/', function($range) {
+                        $regexp = array_pop($range);
+                        array_push($this->arguments, array_pop($range));
+                        return sprintf('(%s)', $regexp);
+                    }, $pattern);
                     $list[$pattern] = [
-                        'uri' => $path,
-                        'arguments' => $arguments
+                        'class' => $path,
+                        'arguments' => $this->arguments
                     ];
                 }
 
-                $arguments = [];
+                $this->arguments = [];
                 foreach ($list as $pattern => $group) {
-                    if (preg_match('/^' . $pattern . '$/', $this->uri, $matches)) {
-                        $uri = $group['uri'];
+                    if(preg_match('#^\/?' . $pattern . '$#', $this->uri, $matches)) {
+                        $uri = $group['class'];
                         array_shift($matches);
-                        foreach ($group['arguments'] as $k => $assoc) {
-                            $arguments[$assoc] = $matches[$k];
+                        if($matches) {
+                            foreach ($group['arguments'] as $key => $name) {
+                                $arguments[$name] = $matches[$key];
+                            }
                         }
-                        break;
                     }
                 }
             }
 
-            $arguments = $_GET = array_merge($arguments, $_GET);
+            $class = ['Controllers'];
             $group = explode('/', $uri);
-            $action = array_pop($group);
-            $class = count($group) > 1 ? implode('\\', $group) : array_shift($group);
-            if(!$class) {
-                $class = $action;
-                $action = 'Index';
+            foreach($group as $value) {
+                if($value) {
+                    array_push($class, $value ? ucfirst($value) : 'Index');
+                }
             }
-
-            $class = sprintf('Controllers\\%s', ucfirst($class));
-            return (new $class)->prepare($action, $arguments)->execute();
+            $action = count($class) > 2 ? array_pop($class) : 'Index';
+            $class = implode("\\", $class);
+            return (new $class)->prepare($action, array_merge($this->arguments, $_GET))->execute();
         }
 
     }

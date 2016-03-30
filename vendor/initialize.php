@@ -267,10 +267,8 @@ namespace Genius {
 
         public function run()
         {
-
             $arguments = [];
-            $url = ($url = (array)Genius::getComponents('url')) ? $url : [];
-            if ($url) {
+            if (($url = (array)Genius::getComponents('url'))) {
                 $list = [];
                 foreach ($url as $pattern => $path) {
                     if (preg_match_all('/\<(.+?)\:(.+?)\>/', $pattern, $matches)) {
@@ -306,25 +304,24 @@ namespace Genius {
 
                 if ($find) {
                     if (preg_match('/\/(.+?)\/(.+)/', $this->uri, $matches)) {
-                        array_shift($matches);
-                        list($class, $action) = $matches;
+                        var_dump($matches);
                     }
-                }
-
-            } else {
-
-                $group = explode('/', $this->uri);
-                $action = array_pop($group);
-                $class = count($group) > 1 ? implode('\\', $group) : array_shift($group);
-                if(!$class) {
-                    $class = $action;
-                    $action = 'Index';
                 }
 
             }
 
+            $group = explode('/', $class);
+            $action = array_pop($group);
+            $class = count($group) > 1 ? implode('\\', $group) : array_shift($group);
+            if(!$class) {
+                $class = $action;
+                $action = 'Index';
+            }
+
             $arguments = $_GET = array_merge($arguments, $_GET);
             $class = sprintf('Controllers\\%s', ucfirst($class));
+
+            var_dump($class);
 
             return (new $class)->prepare($action, $arguments)->execute();
 

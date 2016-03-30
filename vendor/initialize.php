@@ -63,22 +63,21 @@ namespace {
             if (!is_file($file)) throw new InvaildException(sprintf('File not found %s', $file));
             $list = require(APP_ROOT . '/config/config.php');
             if (!is_array($list)) throw new InvaildException('Configuration file to return type must be an array');
-            $object = new Object($list);
-            return $object->get($env);
+            return (new Object($list))->get($env);
         }
 
         /**
          * @param string $name
-         * @return void
+         * @return mixed
          * @throws InvaildException
          */
         public static function getComponents($name)
         {
-            $components = Genius::userConfig()->components;
+            $components = Genius::userConfig()->get('components');
             if (!property_exists($components, $name)) {
-                throw new InvaildException(sprintf('Undefined components: %s("%s")', __METHOD__, $name));
+                throw new InvaildException(sprintf('Undefined components: %s', $name));
             }
-            return $components->$name;
+            return $components->get($name);
         }
 
         /**
@@ -115,7 +114,6 @@ namespace Genius {
     use Genius;
     use Genius\View\Render;
     use Genius\Exception\InvaildException;
-    use Genius\Exception\PHPVersionException;
 
     abstract class Application extends Genius
     {
@@ -128,7 +126,9 @@ namespace Genius {
             ob_start();
             ob_implicit_flush(1);
 
-            if (version_compare(PHP_VERSION, '5.4.0', '<')) throw new PHPVersionException('5.4.0');
+            if (version_compare(PHP_VERSION, '5.4.0', '<')) {
+                trigger_error('PHP version cannot be less than 5.4.0', E_USER_ERROR);
+            }
 
             $timezone = Genius::userConfig()->get('parameters')->get('timezone');
             date_default_timezone_set(!empty($timezone) ? Genius::userConfig()->parameters->timezone : 'Asia/Shanghai');
@@ -143,6 +143,7 @@ namespace Genius {
 
             Application::elapsed('time');
             Application::elapsed('memory');
+            if(!is_dir(APP_ROOT . '/runtime')) mkdir(APP_ROOT . '/runtime');
 
             set_error_handler('Genius\Utils\Debugger::Error');
             set_exception_handler('Genius\Utils\Debugger::Exception');
@@ -152,6 +153,11 @@ namespace Genius {
 
         }
 
+        /**
+         * @param string $class
+         * @return mixed
+         * @throws InvaildException
+         */
         private static function autoLoad($class)
         {
             $group = explode('\\', $class);
@@ -171,7 +177,7 @@ namespace Genius {
             }
 
             if (!is_file($file)) {
-                throw new InvaildException();
+                throw new InvaildException(sprintf('File not found %s', $file));
             }
 
             return require($file);
@@ -225,16 +231,15 @@ namespace Genius {
     class Route
     {
         protected $uri;
-        protected $parameter;
 
         private function __construct()
-        {}
+        {
+        }
 
         public static function resolve()
         {
             $self = new static;
-
-            if (Genius::getComponents('url')) {
+            if ((array)Genius::getComponents('url')) {
 
                 if (!GENIUS_COMMAND_LINE) {
                     $subdirectory =
@@ -252,62 +257,69 @@ namespace Genius {
                     $self->uri = count($argv) ? array_shift($argv) : '/';
                 }
 
-                return $self;
-
+            } else {
+                $self->uri = !empty($_GET['route']) ? $_GET['route'] : '/';
             }
+
+            return $self;
 
         }
 
         public function run()
         {
-            $list = [];
-            $url = [];
-            if (!empty(Genius::getComponents('url'))) {
-                $url = (array)Genius::getComponents('url');
-            }
 
             $arguments = [];
-            foreach ($url as $pattern => $path) {
-                if (preg_match_all('/\<(.+?)\:(.+?)\>/', $pattern, $matches)) {
-                    list($unused, $name, $regexp) = $matches;
-                    foreach ($unused as $key => $value) {
-                        $pattern = sprintf(preg_quote(str_replace($value, '%s', $pattern), '/'), '(' . $regexp[$key] . ')');
-                        $arguments[] = $name[$key];
+            $url = ($url = (array)Genius::getComponents('url')) ? $url : [];
+            if ($url) {
+                $list = [];
+                foreach ($url as $pattern => $path) {
+                    if (preg_match_all('/\<(.+?)\:(.+?)\>/', $pattern, $matches)) {
+                        list($unused, $name, $regexp) = $matches;
+                        foreach ($unused as $key => $value) {
+                            $pattern = sprintf(preg_quote(str_replace($value, '%s', $pattern), '/'), '(' . $regexp[$key] . ')');
+                            $arguments[] = $name[$key];
+                        }
+                    }
+
+                    list($class, $action) = explode('/', $path);
+
+                    $list[$pattern] = [
+                        'arguments' => $arguments,
+                        'class' => $class,
+                        'action' => $action];
+                }
+
+                $find = 0;
+                $arguments = [];
+                foreach ($list as $pattern => $group) {
+                    if (preg_match('/^' . $pattern . '$/', $this->uri, $matches)) {
+                        $find = 1;
+                        array_shift($matches);
+                        foreach ($group['arguments'] as $k => $assoc) {
+                            $arguments[$assoc] = $matches[$k];
+                        }
+                        $class = $group['class'];
+                        $action = $group['action'];
+                        break;
                     }
                 }
 
-                list($class, $action) = explode('/', $path);
-
-                $list[$pattern] = [
-                    'arguments' => $arguments,
-                    'class' => $class,
-                    'action' => $action];
-            }
-
-            $find = 0;
-            $arguments = [];
-            foreach ($list as $pattern => $group) {
-                if (preg_match('/^' . $pattern . '$/', $this->uri, $matches)) {
-                    $find = 1;
-                    array_shift($matches);
-                    foreach ($group['arguments'] as $k => $assoc) {
-                        $arguments[$assoc] = $matches[$k];
+                if ($find) {
+                    if (preg_match('/\/(.+?)\/(.+)/', $this->uri, $matches)) {
+                        array_shift($matches);
+                        list($class, $action) = $matches;
                     }
-                    $class = $group['class'];
-                    $action = $group['action'];
-                    break;
                 }
-            }
 
-            if ($find) {
-                if (preg_match('/\/(.+?)\/(.+)/', $this->uri, $matches)) {
-                    array_shift($matches);
-                    list($class, $action) = $matches;
-                }
+            } else {
+                $group = explode('/', $this->uri);
+                $class = ($class = array_shift($group)) ? $class : 'index';
+                $action = ($action = array_shift($group)) ? $action : 'index';
             }
 
             $arguments = $_GET = array_merge($arguments, $_GET);
             $class = sprintf('Controllers\\%s', ucfirst($class));
+
             return (new $class)->prepare($action, $arguments)->execute();
 
         }
@@ -385,12 +397,9 @@ namespace Genius\Controller {
             $result = $method->invokeArgs($this, $args);
             if (method_exists($this, '__after')) $this->__after();
 
-            if ($result) {
+            if (!is_null($result)) {
                 if (!is_numeric($result) && !is_string($result)) {
-                    throw new InvaildException(Genius::sprintf('Method {class}::{action}() return data type error', [
-                        'class' => $class,
-                        'action' => $action
-                    ]));
+                    throw new InvaildException(sprintf('Method %s::%s() return data type error', $class, $action));
                 }
             }
 
@@ -421,11 +430,12 @@ namespace Genius\Exception {
 
     class InvaildException extends ErrorException
     {
+        public function __construct()
+        {
+            return call_user_func_array('parent::__construct', func_get_args());
+        }
     }
 
-    class PHPVersionException extends ErrorException
-    {
-    }
 }
 
 namespace Genius\View {

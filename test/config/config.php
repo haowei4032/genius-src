@@ -12,10 +12,6 @@ return [
 
             'log' => [
                 'class' => 'Genius\Utils\Log',
-            ],
-
-            'url' => [
-                '/<id:\d+>.html' => 'index/index'
             ]
         ]
 

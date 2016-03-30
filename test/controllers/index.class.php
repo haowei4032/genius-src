@@ -15,12 +15,12 @@ class Index extends Controller
 {
     public function __before()
     {
-        var_dump($_GET);
+        var_dump($this);
     }
 
     public function Index()
     {
-
+        echo 11111;
     }
 
 }

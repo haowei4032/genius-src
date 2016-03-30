@@ -267,8 +267,10 @@ namespace Genius {
 
         public function run()
         {
+
             $arguments = [];
-            if (($url = (array)Genius::getComponents('url'))) {
+            $uri = $this->uri;
+            if(($url = (array) Genius::getComponents('url'))) {
                 $list = [];
                 foreach ($url as $pattern => $path) {
                     if (preg_match_all('/\<(.+?)\:(.+?)\>/', $pattern, $matches)) {
@@ -279,38 +281,27 @@ namespace Genius {
                         }
                     }
 
-                    list($class, $action) = explode('/', $path);
-
                     $list[$pattern] = [
-                        'arguments' => $arguments,
-                        'class' => $class,
-                        'action' => $action];
+                        'uri' => $path,
+                        'arguments' => $arguments
+                    ];
                 }
 
-                $find = 0;
                 $arguments = [];
                 foreach ($list as $pattern => $group) {
                     if (preg_match('/^' . $pattern . '$/', $this->uri, $matches)) {
-                        $find = 1;
+                        $uri = $group['uri'];
                         array_shift($matches);
                         foreach ($group['arguments'] as $k => $assoc) {
                             $arguments[$assoc] = $matches[$k];
                         }
-                        $class = $group['class'];
-                        $action = $group['action'];
                         break;
                     }
                 }
-
-                if ($find) {
-                    if (preg_match('/\/(.+?)\/(.+)/', $this->uri, $matches)) {
-                        var_dump($matches);
-                    }
-                }
-
             }
 
-            $group = explode('/', $class);
+            $arguments = $_GET = array_merge($arguments, $_GET);
+            $group = explode('/', $uri);
             $action = array_pop($group);
             $class = count($group) > 1 ? implode('\\', $group) : array_shift($group);
             if(!$class) {
@@ -318,13 +309,8 @@ namespace Genius {
                 $action = 'Index';
             }
 
-            $arguments = $_GET = array_merge($arguments, $_GET);
             $class = sprintf('Controllers\\%s', ucfirst($class));
-
-            var_dump($class);
-
             return (new $class)->prepare($action, $arguments)->execute();
-
         }
 
     }

@@ -312,9 +312,15 @@ namespace Genius {
                 }
 
             } else {
+
                 $group = explode('/', $this->uri);
-                $class = ($class = array_shift($group)) ? $class : 'index';
-                $action = ($action = array_shift($group)) ? $action : 'index';
+                $action = array_pop($group);
+                $class = count($group) > 1 ? implode('\\', $group) : array_shift($group);
+                if(!$class) {
+                    $class = $action;
+                    $action = 'Index';
+                }
+
             }
 
             $arguments = $_GET = array_merge($arguments, $_GET);

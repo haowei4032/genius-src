@@ -35,7 +35,7 @@ namespace {
         {
             $group = explode('/', $alias);
             $base = array_shift($group);
-            $path = implode($group);
+            $path = implode('/', $group);
 
             if (isset(self::$aliases[$alias])) return self::$aliases[$alias];
             if (isset(self::$aliases[$base])) return self::$aliases[$base] . '/' . $path;
@@ -75,6 +75,7 @@ namespace {
         {
             $components = Genius::userConfig()->get('components');
             if (!property_exists($components, $name)) {
+                if (!GENIUS_DEBUG) return null;
                 throw new InvaildException(sprintf('Undefined components: %s', $name));
             }
             return $components->get($name);
@@ -180,7 +181,7 @@ namespace Genius {
                 throw new InvaildException(sprintf('File not found %s', $file));
             }
 
-            return require($file);
+            require($file);
 
         }
     }

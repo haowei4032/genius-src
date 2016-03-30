@@ -144,7 +144,7 @@ namespace Genius {
 
             Application::elapsed('time');
             Application::elapsed('memory');
-            if(!is_dir(APP_ROOT . '/runtime')) mkdir(APP_ROOT . '/runtime');
+            Genius\Utils\Directory::create(Genius::getComponents('log')->get('path'));
 
             set_error_handler('Genius\Utils\Debugger::Error');
             set_exception_handler('Genius\Utils\Debugger::Exception');

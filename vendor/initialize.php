@@ -241,7 +241,6 @@ namespace Genius {
         {
             $self = new static;
             if ((array)Genius::getComponents('url')) {
-
                 if (!GENIUS_COMMAND_LINE) {
                     $subdirectory =
                         dirname($_SERVER['SCRIPT_FILENAME']) == $_SERVER['DOCUMENT_ROOT'] ?
@@ -277,8 +276,8 @@ namespace Genius {
                     if (preg_match_all('/\<(.+?)\:(.+?)\>/', $pattern, $matches)) {
                         list($unused, $name, $regexp) = $matches;
                         foreach ($unused as $key => $value) {
-                            $pattern = sprintf(preg_quote(str_replace($value, '%s', $pattern), '/'), '(' . $regexp[$key] . ')');
-                            $arguments[] = $name[$key];
+                            $pattern = sprintf(preg_quote(str_replace($value, '%s', $pattern), '/'), '\/?(' . $regexp[$key] . ')');
+                            array_push($arguments, $name[$key]);
                         }
                     }
 

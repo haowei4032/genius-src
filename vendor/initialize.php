@@ -293,7 +293,7 @@ namespace Genius {
                         array_shift($matches);
                         if($matches) {
                             foreach ($group['arguments'] as $key => $name) {
-                                $arguments[$name] = $matches[$key];
+                                $this->arguments[$name] = $matches[$key];
                             }
                         }
                     }
@@ -307,6 +307,7 @@ namespace Genius {
                     array_push($class, $value ? ucfirst($value) : 'Index');
                 }
             }
+            if(count($class) < 2) array_push($class, 'Index');
             $action = count($class) > 2 ? array_pop($class) : 'Index';
             $class = implode("\\", $class);
             return (new $class)->prepare($action, array_merge($this->arguments, $_GET))->execute();

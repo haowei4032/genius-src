@@ -13,14 +13,9 @@ use Genius\Controller\General as Controller;
 
 class Index extends Controller
 {
-    public function __before()
-    {
-        var_dump($this);
-    }
-
     public function Index()
     {
-        echo 11111;
+        var_dump($this);
     }
 
 }

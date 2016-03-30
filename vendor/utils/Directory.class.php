@@ -22,7 +22,7 @@ abstract class Directory
         if(!$path) return null;
         if(!is_dir($path)) {
             if(!mkdir($path, 755)) {
-                static::createIt(dirname($path));
+                static::create(dirname($path));
             }
         }
         return $path;

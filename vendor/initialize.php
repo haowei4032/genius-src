@@ -251,7 +251,7 @@ namespace Genius {
                         ($offset = strpos($_SERVER['REQUEST_URI'], '?')) ?
                             substr($_SERVER['REQUEST_URI'], 0, $offset) :
                             $_SERVER['REQUEST_URI'];
-                    $self->uri = substr($REQUEST_URI, strlen($subdirectory));
+                    $self->uri = ($uri = substr($REQUEST_URI, strlen($subdirectory))) == $_SERVER['SCRIPT_NAME'] ? '/' : $uri;
                 } else {
                     $argv = $_SERVER['argv'];
                     array_shift($argv);

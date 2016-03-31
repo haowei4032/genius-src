@@ -124,7 +124,7 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
             Application::elapsed('time'));
 
         ob_end_flush();
-        error_log($e->getMessage(), 3, Genius::getAlias('~/runtime/log/error.log'));
+        //error_log($e->getMessage() . PHP_EOL, 3, Genius::getAlias('~/runtime/log/error.log'));
         exit;
     }
 
@@ -137,7 +137,7 @@ body{margin:0;padding:10px;font-family:arial,Helvetica,sans-serif;font-size:13px
     {
         $error = error_get_last();
         if (in_array($error['type'], [E_USER_NOTICE, E_USER_WARNING, E_USER_ERROR, E_NOTICE, E_WARNING, E_ERROR])) {
-            error_log($error['message'], 3, Genius::getAlias('~/runtime/log/error.log'));
+            //error_log($error['message'] . PHP_EOL, 3, Genius::getAlias('~/runtime/log/error.log'));
             return self::error($error['type'], $error['message'], $error['file'], $error['line']);
         }
     }

@@ -23,7 +23,8 @@ return [
             ],
 
             'url' => [
-                '<id:\d+>.html' => 'index/index'
+                '<id:\d+>.html' => 'index/index',
+                'user.html' => 'test/user/index'
             ]
         ]
 

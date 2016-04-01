@@ -124,8 +124,8 @@ namespace Genius {
 
         public static function init()
         {
-            ob_start();
-            ob_implicit_flush(1);
+            //ob_start();
+            //ob_implicit_flush(1);
 
             if (version_compare(PHP_VERSION, '5.4.0', '<')) {
                 trigger_error('PHP version cannot be less than 5.4.0', E_USER_ERROR);

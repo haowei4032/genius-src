@@ -24,7 +24,13 @@ namespace {
 
     abstract class Genius
     {
+        /**
+         * @var array
+         */
         protected static $elapsed = [];
+        /**
+         * @var array
+         */
         protected static $aliases = [];
 
         /**
@@ -118,14 +124,21 @@ namespace Genius {
 
     abstract class Application extends Genius
     {
+
         protected static $elapsed = [];
+
+        /**
+         * @var \Genius\Object
+         */
         protected $route;
+
+        /**
+         * @var \Genius\Response
+         */
         protected $response;
 
         public static function init()
         {
-            //ob_start();
-            //ob_implicit_flush(1);
 
             if (version_compare(PHP_VERSION, '5.4.0', '<')) {
                 trigger_error('PHP version cannot be less than 5.4.0', E_USER_ERROR);
@@ -216,6 +229,9 @@ namespace Genius {
     class InlineAction
     {
 
+        /**
+         * @var Genius\Object
+         */
         protected $reference = null;
 
         /**
@@ -242,7 +258,13 @@ namespace Genius {
 
     class Route
     {
+        /**
+         * @var string
+         */
         protected $uri;
+        /**
+         * @var array
+         */
         protected $arguments = [];
 
         private function __construct()
@@ -357,39 +379,59 @@ namespace Genius {
 
     class Response
     {
+        /**
+         * @var string
+         */
         public $body;
+
+        /**
+         * @var array
+         */
         public $header;
 
         public function __construct()
         {
-            $this->header = new Genius\Response\Header;
+
         }
-
-        public function build()
-        {
-            foreach($this->header->headers as $line) header($line);
-            echo $this->body;
-        }
-    }
-
-}
-
-namespace Genius\Response {
-
-    class Header
-    {
-        public $headers = [];
 
         /**
-         * @param string $name
-         * @param string $value
+         * @return Genius\Response;
          */
-        public function set($name, $value)
+        public function setDownload()
         {
-            array_push($this->headers, sprintf('%s: %s', $name, $value));
+            return $this;
         }
 
-        public function statusCode($statusCode = 200)
+        /**
+         * @return Genius\Response;
+         */
+        public function format($format)
+        {
+            return $this;
+        }
+
+        /**
+         * @param string $charset
+         * @return Genius\Response;
+         */
+        public function charset($charset)
+        {
+            return $this;
+        }
+
+        /**
+         * @param string $text
+         * @return Genius\Response;
+         */
+        public function context($text)
+        {
+            return $this;
+        }
+
+        /**
+         * @return mixed
+         */
+        public function build()
         {
             $list = [
 
@@ -450,16 +492,11 @@ namespace Genius\Response {
                 600 => 'Unparseable Response Headers'
 
             ];
-
-            if(isset($list[$statusCode])) {
-                foreach(['Status:', 'HTTP/1.1'] as $prefix)
-                array_unshift($this->headers, $prefix .' '. $statusCode .' '. $list[$statusCode]);
-            }
         }
-
     }
 
 }
+
 
 namespace Genius\Controller {
 
@@ -480,7 +517,7 @@ namespace Genius\Controller {
          */
         public function prepare($action, $parameter)
         {
-            $this->response = new Response;
+            $this->response = new Response();
             $this->route = new Object([
                 'action' => $action,
                 'class' => get_class($this),
@@ -530,7 +567,10 @@ namespace Genius\Controller {
 
         public function execute()
         {
-            return $this->response->build();
+            return $this->response->
+                format('html')->
+                setDownload(false)->
+                context()->build();
         }
     }
 

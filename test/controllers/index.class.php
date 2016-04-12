@@ -10,13 +10,20 @@ namespace Controllers;
 
 use Genius;
 use Genius\Controller\General as Controller;
-use Models\User;
 
 class Index extends Controller
 {
+
     public function Index()
     {
-        var_dump(new User());
+    }
+
+    /**
+     * @return mixed
+     */
+    public function Output()
+    {
+        return [ 'id'=> 1 ];
     }
 
 }

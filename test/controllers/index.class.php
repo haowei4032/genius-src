@@ -13,17 +13,8 @@ use Genius\Controller\General as Controller;
 
 class Index extends Controller
 {
-
-    public function Index()
+    public function __before()
     {
+        //$this->redirect('*', 'm.mwee.cn', [ 'id' => 1, 'forward' => '$.url' ] );
     }
-
-    /**
-     * @return mixed
-     */
-    public function Output()
-    {
-        return [ 'id'=> 1 ];
-    }
-
 }

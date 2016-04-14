@@ -570,7 +570,7 @@ namespace Genius\Controller {
             return $this->response->
                 format('html')->
                 setDownload(false)->
-                context()->build();
+                context($this->response->body)->build();
         }
     }
 

@@ -346,7 +346,7 @@ namespace Genius {
             if (count($class) < 2) array_push($class, 'Index');
             $action = count($class) > 2 ? array_pop($class) : 'Index';
             $class = implode("\\", $class);
-            return (new $class)->prepare($action, array_merge($this->arguments, $_GET))->execute();
+            return (new $class)->prepare($action, $this->arguments)->execute();
         }
 
     }

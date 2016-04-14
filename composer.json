@@ -1,0 +1,15 @@
+{
+  "name": "haowei4032/genius-src-dev",
+  "description": "PHP Genius Framework",
+  "minimum-stability": "dev",
+  "license": "GNU v3",
+  "authors": [
+    {
+      "name": "Blank Haowei",
+      "email": "boss@haowei.me"
+    }
+  ],
+  "require": {
+    "php" : ">=5.4.0"
+  }
+}

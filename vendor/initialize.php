@@ -509,6 +509,14 @@ namespace Genius\Controller {
 
     abstract class General extends Controller
     {
+        public function __before()
+        {
+        }
+
+        public function __after()
+        {
+        }
+
         /**
          * @param string $action
          * @param array $parameter
@@ -539,14 +547,13 @@ namespace Genius\Controller {
                 }
             }
 
-            if($missing) {
+            if ($missing) {
                 throw new InvaildException('a few arguments aaaaaaaaa');
             }
 
             $result = $method->invokeArgs($this, $args);
             if (method_exists($this, '__after')) $this->__after();
-            switch(gettype($result))
-            {
+            switch (gettype($result)) {
                 case 'integer':
                 case 'double' :
                 case 'boolean':
@@ -568,9 +575,9 @@ namespace Genius\Controller {
         public function execute()
         {
             return $this->response->
-                format('html')->
-                setDownload(false)->
-                context($this->response->body)->build();
+            format('html')->
+            setDownload(false)->
+            context($this->response->body)->build();
         }
     }
 

@@ -199,7 +199,7 @@ namespace Genius {
         }
     }
 
-    abstract class Controller extends Render
+    abstract class Controller extends Application
     {
         /**
          * @param string $view
@@ -608,7 +608,7 @@ namespace Genius\Exception {
 namespace Genius\View {
 
     use Genius;
-    use Genius\Application;
+    use Genius\Controller;
 
     abstract class ViewRender
     {
@@ -618,7 +618,7 @@ namespace Genius\View {
 
     }
 
-    abstract class Render extends Application
+    abstract class Render extends Controller
     {
         /**
          * @param string $view

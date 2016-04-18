@@ -640,6 +640,16 @@ namespace Genius\View {
 
         }
 
+        /**
+         * @param string $view
+         * @param array $parameters [optional]
+         * @return string
+         */
+        public function renderFile($view, array $parameters = [])
+        {
+
+        }
+
     }
 
 }

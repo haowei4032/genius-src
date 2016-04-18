@@ -534,7 +534,7 @@ namespace Genius\Controller {
 
             if (method_exists($this, '__before')) $this->__before();
             $method = new \ReflectionMethod($this, $action);
-
+            if (strpos($action, '__') === 0) throw new InvaildException(sprintf('Method %s::%s() does not callback', $this->route->class, $action));
             $args = $missing = [];
             foreach ($method->getParameters() as $arguments) {
                 $name = $arguments->getName();
@@ -548,7 +548,7 @@ namespace Genius\Controller {
             }
 
             if ($missing) {
-                throw new InvaildException('a few arguments aaaaaaaaa');
+                throw new InvaildException('a few arguments ');
             }
 
             $result = $method->invokeArgs($this, $args);

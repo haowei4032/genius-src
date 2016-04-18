@@ -125,7 +125,7 @@ namespace Genius {
     {
 
         protected static $elapsed = [];
-
+        private static $callable = true;
         /**
          * @var \Genius\Object
          */
@@ -142,6 +142,9 @@ namespace Genius {
          */
         public static function init()
         {
+
+            if (!self::$callable) return null;
+            self::$callable = false;
 
             if (version_compare(PHP_VERSION, '5.4.0', '<')) {
                 trigger_error('PHP version cannot be less than 5.4.0', E_USER_ERROR);

@@ -60,7 +60,7 @@ namespace {
         /**
          * @param null|string $env
          * @throws InvaildException
-         * @return void
+         * @return \Genius\Object
          */
         public static function userConfig($env = APP_ENV)
         {
@@ -119,13 +119,13 @@ namespace {
 namespace Genius {
 
     use Genius;
-    use Genius\View\Render;
     use Genius\Exception\InvaildException;
 
     abstract class Application extends Genius
     {
 
         protected static $elapsed = [];
+        private static $callable = true;
 
         /**
          * @var \Genius\Object
@@ -137,12 +137,20 @@ namespace Genius {
          */
         protected $response;
 
+        /**
+         * @return mixed
+         * @throws InvaildException
+         */
         public static function init()
         {
+
+            if (static::$callable) return null;
 
             if (version_compare(PHP_VERSION, '5.4.0', '<')) {
                 trigger_error('PHP version cannot be less than 5.4.0', E_USER_ERROR);
             }
+
+            static::$callable = true;
 
             $timezone = Genius::userConfig()->get('parameters')->get('timezone');
             date_default_timezone_set(!empty($timezone) ? Genius::userConfig()->parameters->timezone : 'Asia/Shanghai');
@@ -201,24 +209,55 @@ namespace Genius {
 
     abstract class Controller extends Application
     {
+
+        /**
+         * @return bool
+         */
+        abstract public function __before();
+
+        /**
+         * @return bool
+         */
+        abstract public function __after();
+
+        /**
+         * @return Genius\View\Render
+         */
+        abstract public function getView();
+
         /**
          * @param string $view
-         * @return Genius\View\ViewRender
+         * @return Genius\View\Render
          */
-        public function getView($view)
-        {
-            if (Genius::getComponents('view')) {
-                return $view;
-            }
-            exit;
-        }
+        abstract public function setView($view);
+
+        /**
+         * @param string $view
+         * @param array $parameters [optional]
+         * @return string
+         */
+        abstract public function render($view, array $parameters = []);
+
+        /**
+         * @param string $html
+         * @param array $parameters [optional]
+         * @return string
+         */
+        abstract public function renderHtml($html, array $parameters = []);
+
+        /**
+         * @param string $view
+         * @param array $parameters [optional]
+         * @return string
+         */
+        abstract public function renderFile($view, array $parameters = []);
 
         /**
          * @param string $action
          * @param array $parameter
          * @return $this
          */
-        abstract public function prepare($action, $parameter);
+        abstract public function prepare($action, array $parameter);
 
         /**
          * @return void
@@ -500,30 +539,54 @@ namespace Genius {
 
 namespace Genius\Controller {
 
-    use Genius;
-    use Genius\Object;
     use Genius\Controller;
     use Genius\Response;
-    use Genius\Exception\InvaildException;
-
+    use Genius\Object;
 
     abstract class General extends Controller
     {
         public function __before()
         {
+            // TODO: Implement __before() method.
         }
 
         public function __after()
         {
+            // TODO: Implement __after() method.
+        }
+
+        public function render($view, array $parameters = [])
+        {
+            // TODO: Implement render() method.
+        }
+
+        public function renderFile($view, array $parameters = [])
+        {
+            // TODO: Implement renderFile() method.
+        }
+
+        public function renderHtml($html, array $parameters = [])
+        {
+            // TODO: Implement renderHtml() method.
+        }
+
+        public function getView()
+        {
+            // TODO: Implement getView() method.
+        }
+
+        public function setView($view)
+        {
+            // TODO: Implement setView() method.
         }
 
         /**
          * @param string $action
          * @param array $parameter
-         * @return $this|bool
+         * @return Controller
          * @throws InvaildException
          */
-        public function prepare($action, $parameter)
+        public function prepare($action, array $parameter)
         {
             $this->response = new Response();
             $this->route = new Object([
@@ -572,12 +635,17 @@ namespace Genius\Controller {
 
         }
 
+        /**
+         * @return mixed
+         */
         public function execute()
         {
-            return $this->response->
+            /*echo $this->response->
             format('html')->
             setDownload(false)->
-            context($this->response->body)->build();
+            context($this->response->body)->build();*/
+
+            var_dump($this);
         }
     }
 
@@ -614,40 +682,28 @@ namespace Genius\View {
     {
         abstract public function run();
 
-        abstract public function runArgs(array $stack);
+        abstract public function runArgs(array $stack = []);
 
     }
 
-    abstract class Render extends Controller
+    class Render extends ViewRender
     {
-        /**
-         * @param string $view
-         * @param array $parameters [optional]
-         * @return string
-         */
-        public function render($view, array $parameters = [])
+
+        public function run()
         {
-            return $this->getView($view)->runArgs($parameters);
+        }
+
+        public function runArgs(array $stack = [])
+        {
         }
 
         /**
-         * @param string $html
-         * @param array $parameters [optional]
-         * @return string
+         * @param mixed $context
+         * @return Genius\View\Render
          */
-        public function renderHtml($html, array $parameters = [])
+        public function setContext($context)
         {
-
-        }
-
-        /**
-         * @param string $view
-         * @param array $parameters [optional]
-         * @return string
-         */
-        public function renderFile($view, array $parameters = [])
-        {
-
+            return $this;
         }
 
     }

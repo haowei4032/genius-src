@@ -144,13 +144,13 @@ namespace Genius {
         public static function init()
         {
 
-            if (static::$callable) return null;
+            if (!static::$callable) return null;
 
             if (version_compare(PHP_VERSION, '5.4.0', '<')) {
                 trigger_error('PHP version cannot be less than 5.4.0', E_USER_ERROR);
             }
 
-            static::$callable = true;
+            static::$callable = false;
 
             $timezone = Genius::userConfig()->get('parameters')->get('timezone');
             date_default_timezone_set(!empty($timezone) ? Genius::userConfig()->parameters->timezone : 'Asia/Shanghai');
@@ -640,12 +640,11 @@ namespace Genius\Controller {
          */
         public function execute()
         {
-            /*echo $this->response->
+            return $this->response->
             format('html')->
             setDownload(false)->
-            context($this->response->body)->build();*/
+            context($this->response->body)->build();
 
-            var_dump($this);
         }
     }
 

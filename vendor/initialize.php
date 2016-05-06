@@ -24,7 +24,13 @@ namespace {
 
     abstract class Genius
     {
+        /**
+         * @var array
+         */
         protected static $elapsed = [];
+        /**
+         * @var array
+         */
         protected static $aliases = [];
 
         /**
@@ -54,7 +60,7 @@ namespace {
         /**
          * @param null|string $env
          * @throws InvaildException
-         * @return void
+         * @return \Genius\Object
          */
         public static function userConfig($env = APP_ENV)
         {
@@ -113,19 +119,32 @@ namespace {
 namespace Genius {
 
     use Genius;
-    use Genius\View\Render;
     use Genius\Exception\InvaildException;
 
     abstract class Application extends Genius
     {
-        protected static $elapsed = [];
-        protected $route;
-        protected $text;
 
+        protected static $elapsed = [];
+        private static $callable = true;
+        /**
+         * @var \Genius\Object
+         */
+        protected $route;
+
+        /**
+         * @var \Genius\Response
+         */
+        protected $response;
+
+        /**
+         * @return mixed
+         * @throws InvaildException
+         */
         public static function init()
         {
-            ob_start();
-            ob_implicit_flush(1);
+
+            if (!self::$callable) return null;
+            self::$callable = false;
 
             if (version_compare(PHP_VERSION, '5.4.0', '<')) {
                 trigger_error('PHP version cannot be less than 5.4.0', E_USER_ERROR);
@@ -186,26 +205,57 @@ namespace Genius {
         }
     }
 
-    abstract class Controller extends Render
+    abstract class Controller extends Application
     {
+
+        /**
+         * @return bool
+         */
+        abstract public function __before();
+
+        /**
+         * @return bool
+         */
+        abstract public function __after();
+
+        /**
+         * @return Genius\View\Render
+         */
+        abstract public function getView();
+
         /**
          * @param string $view
-         * @return Genius\View\ViewRender
+         * @return Genius\View\Render
          */
-        public function getView($view)
-        {
-            if (Genius::getComponents('view')) {
-                return $view;
-            }
-            exit;
-        }
+        abstract public function setView($view);
+
+        /**
+         * @param string $view
+         * @param array $parameters [optional]
+         * @return string
+         */
+        abstract public function render($view, array $parameters = []);
+
+        /**
+         * @param string $html
+         * @param array $parameters [optional]
+         * @return string
+         */
+        abstract public function renderHtml($html, array $parameters = []);
+
+        /**
+         * @param string $view
+         * @param array $parameters [optional]
+         * @return string
+         */
+        abstract public function renderFile($view, array $parameters = []);
 
         /**
          * @param string $action
          * @param array $parameter
          * @return $this
          */
-        abstract public function prepare($action, $parameter);
+        abstract public function prepare($action, array $parameter);
 
         /**
          * @return void
@@ -215,14 +265,28 @@ namespace Genius {
 
     class InlineAction
     {
-        public $action = null;
 
         /**
-         * @param Genius\Controller $controller
+         * @var Genius\Object
+         */
+        protected $reference = null;
+
+        /**
+         * @param Genius\Controller $mixed
          * @param string $action
          * @param array $parameters
          */
-        public function __construct(Genius\Controller $controller, $action, array $parameters = [])
+        public function __construct(Genius\Controller $mixed, $action, array $parameters = [])
+        {
+
+        }
+
+        public function checkVaild()
+        {
+
+        }
+
+        public function run()
         {
 
         }
@@ -231,7 +295,13 @@ namespace Genius {
 
     class Route
     {
+        /**
+         * @var string
+         */
         protected $uri;
+        /**
+         * @var array
+         */
         protected $arguments = [];
 
         private function __construct()
@@ -252,7 +322,7 @@ namespace Genius {
                             substr($_SERVER['REQUEST_URI'], 0, $offset) :
                             $_SERVER['REQUEST_URI'];
                     $self->uri = substr($REQUEST_URI, strlen($subdirectory));
-                    if(($self->uri == $_SERVER['SCRIPT_NAME']) || ($self->uri == substr($_SERVER['SCRIPT_NAME'], strlen($subdirectory)))) {
+                    if (($self->uri == $_SERVER['SCRIPT_NAME']) || ($self->uri == substr($_SERVER['SCRIPT_NAME'], strlen($subdirectory)))) {
                         $self->uri = '/';
                     }
                 } else {
@@ -274,11 +344,11 @@ namespace Genius {
 
             $this->arguments = [];
             $uri = $this->uri;
-            if(($url = (array) Genius::getComponents('url'))) {
+            if (($url = (array)Genius::getComponents('url'))) {
                 $list = [];
                 foreach ($url as $pattern => $path) {
                     $this->arguments = [];
-                    $pattern = preg_replace_callback('/\<(.+?):(.+?)\>/', function($range) {
+                    $pattern = preg_replace_callback('/\<(.+?):(.+?)\>/', function ($range) {
                         $regexp = array_pop($range);
                         array_push($this->arguments, array_pop($range));
                         return sprintf('(%s)', $regexp);
@@ -291,10 +361,10 @@ namespace Genius {
 
                 $this->arguments = [];
                 foreach ($list as $pattern => $group) {
-                    if(preg_match('#^\/?' . $pattern . '$#', $this->uri, $matches)) {
+                    if (preg_match('#^\/?' . $pattern . '$#', $this->uri, $matches)) {
                         $uri = $group['class'];
                         array_shift($matches);
-                        if($matches) {
+                        if ($matches) {
                             foreach ($group['arguments'] as $key => $name) {
                                 $this->arguments[$name] = $matches[$key];
                             }
@@ -305,15 +375,15 @@ namespace Genius {
 
             $class = ['Controllers'];
             $group = explode('/', $uri);
-            foreach($group as $value) {
-                if($value) {
+            foreach ($group as $value) {
+                if ($value) {
                     array_push($class, $value ? ucfirst($value) : 'Index');
                 }
             }
-            if(count($class) < 2) array_push($class, 'Index');
+            if (count($class) < 2) array_push($class, 'Index');
             $action = count($class) > 2 ? array_pop($class) : 'Index';
             $class = implode("\\", $class);
-            return (new $class)->prepare($action, array_merge($this->arguments, $_GET))->execute();
+            return (new $class)->prepare($action, $this->arguments)->execute();
         }
 
     }
@@ -344,65 +414,235 @@ namespace Genius {
 
     }
 
+    class Response
+    {
+        /**
+         * @var string
+         */
+        public $body;
+
+        /**
+         * @var array
+         */
+        public $header;
+
+        public function __construct()
+        {
+
+        }
+
+        /**
+         * @return Genius\Response;
+         */
+        public function setDownload()
+        {
+            return $this;
+        }
+
+        /**
+         * @return Genius\Response;
+         */
+        public function format($format)
+        {
+            return $this;
+        }
+
+        /**
+         * @param string $charset
+         * @return Genius\Response;
+         */
+        public function charset($charset)
+        {
+            return $this;
+        }
+
+        /**
+         * @param string $text
+         * @return Genius\Response;
+         */
+        public function context($text)
+        {
+            return $this;
+        }
+
+        /**
+         * @return mixed
+         */
+        public function build()
+        {
+            $list = [
+
+                100 => 'Continue',
+                101 => 'Switching Protocols',
+                102 => 'Processing',
+                200 => 'OK',
+                201 => 'Created',
+                202 => 'Accepted',
+                203 => 'Non-Authoritative Information',
+                204 => 'No Content',
+                205 => 'Reset Content',
+                206 => 'Partial Content',
+                207 => 'Multi-Status',
+                300 => 'Multiple Choices',
+                301 => 'Moved Permanently',
+                302 => 'Move temporarily',
+                303 => 'See Other',
+                304 => 'Not Modified',
+                305 => 'Use Proxy',
+                306 => 'Switch Proxy',
+                307 => 'Temporary Redirect',
+                400 => 'Bad Request',
+                401 => 'Unauthorized',
+                402 => 'Payment Required',
+                403 => 'Forbidden',
+                404 => 'Not Found',
+                405 => 'Method Not Allowed',
+                406 => 'Not Acceptable',
+                407 => 'Proxy Authentication Required',
+                408 => 'Request Timeout',
+                409 => 'Conflict',
+                410 => 'Gone',
+                411 => 'Length Required',
+                412 => 'Precondition Failed',
+                413 => 'Request Entity Too Large',
+                414 => 'Request-URI Too Long',
+                415 => 'Unsupported Media Type',
+                416 => 'Requested Range Not Satisfiable',
+                417 => 'Expectation Failed',
+                421 => 'There are too many connections from your internet address',
+                422 => 'Unprocessable Entity',
+                423 => 'Locked',
+                424 => 'Failed Dependency',
+                425 => 'Unordered Collection',
+                426 => 'Upgrade Required',
+                449 => 'Retry With',
+                500 => 'Internal Server Error',
+                501 => 'Not Implemented',
+                502 => 'Bad Gateway',
+                503 => 'Service Unavailable',
+                504 => 'Gateway Timeout',
+                505 => 'HTTP Version Not Supported',
+                506 => 'Variant Also Negotiates',
+                507 => 'Insufficient Storage',
+                509 => 'Bandwidth Limit Exceeded',
+                510 => 'Not Extended',
+                600 => 'Unparseable Response Headers'
+
+            ];
+        }
+    }
+
 }
+
 
 namespace Genius\Controller {
 
-    use Genius;
-    use Genius\Object;
     use Genius\Controller;
-    use Genius\Exception\InvaildException;
+    use Genius\Response;
+    use Genius\Object;
 
     abstract class General extends Controller
     {
+        public function __before()
+        {
+            // TODO: Implement __before() method.
+        }
+
+        public function __after()
+        {
+            // TODO: Implement __after() method.
+        }
+
+        public function render($view, array $parameters = [])
+        {
+            // TODO: Implement render() method.
+        }
+
+        public function renderFile($view, array $parameters = [])
+        {
+            // TODO: Implement renderFile() method.
+        }
+
+        public function renderHtml($html, array $parameters = [])
+        {
+            // TODO: Implement renderHtml() method.
+        }
+
+        public function getView()
+        {
+            // TODO: Implement getView() method.
+        }
+
+        public function setView($view)
+        {
+            // TODO: Implement setView() method.
+        }
+
         /**
          * @param string $action
          * @param array $parameter
-         * @return $this|bool
+         * @return Controller
          * @throws InvaildException
          */
-        public function prepare($action, $parameter)
+        public function prepare($action, array $parameter)
         {
-            $class = get_class($this);
+            $this->response = new Response();
             $this->route = new Object([
                 'action' => $action,
-                'class' => $class,
+                'class' => get_class($this),
                 'parameter' => new Object($parameter)
             ]);
 
             if (method_exists($this, '__before')) $this->__before();
             $method = new \ReflectionMethod($this, $action);
-            $args = [];
-            $missing = [];
+            if (strpos($action, '__') === 0) throw new InvaildException(sprintf('Method %s::%s() does not callback', $this->route->class, $action));
+            $args = $missing = [];
             foreach ($method->getParameters() as $arguments) {
                 $name = $arguments->getName();
-                if (array_key_exists($name, $parameter)) {
+                if (isset($parameter[$name])) {
                     $args[] = $parameter[$name];
                 } elseif ($arguments->isDefaultValueAvailable()) {
                     $args[] = $arguments->getDefaultValue();
                 } else {
-                    $missing = [];
+                    $missing[] = $name;
                 }
             }
 
-            if ($missing) return false;
+            if ($missing) {
+                throw new InvaildException('a few arguments ');
+            }
+
             $result = $method->invokeArgs($this, $args);
             if (method_exists($this, '__after')) $this->__after();
-
-            if (!is_null($result)) {
-                if (!is_numeric($result) && !is_string($result)) {
-                    throw new InvaildException(sprintf('Method %s::%s() return data type error', $class, $action));
-                }
+            switch (gettype($result)) {
+                case 'integer':
+                case 'double' :
+                case 'boolean':
+                case 'NULL':
+                case 'string':
+                    $this->response->body .= strval($result);
+                    break;
+                case 'array':
+                    $this->response->header->set('Content-Type', 'application/json');
+                    $this->response->body = json_encode($result);
+                    break;
+                default:
+                    throw new InvaildException(sprintf('Method %s::%s() return data type error', $this->route->get('class'), $action));
             }
-
-            $this->text = ob_get_clean() . strval($result);
             return $this;
 
         }
 
+        /**
+         * @return mixed
+         */
         public function execute()
         {
-            echo $this->text;
+            return $this->response->
+            format('html')->
+            setDownload(false)->
+            context($this->response->body)->build();
+
         }
     }
 
@@ -433,36 +673,34 @@ namespace Genius\Exception {
 namespace Genius\View {
 
     use Genius;
-    use Genius\Application;
+    use Genius\Controller;
 
     abstract class ViewRender
     {
         abstract public function run();
 
-        abstract public function runArgs(array $stack);
+        abstract public function runArgs(array $stack = []);
 
     }
 
-    abstract class Render extends Application
+    class Render extends ViewRender
     {
-        /**
-         * @param string $view
-         * @param array $parameters [optional]
-         * @return string
-         */
-        public function render($view, array $parameters = [])
+
+        public function run()
         {
-            return $this->getView($view)->runArgs($parameters);
+        }
+
+        public function runArgs(array $stack = [])
+        {
         }
 
         /**
-         * @param string $html
-         * @param array $parameters [optional]
-         * @return string
+         * @param mixed $context
+         * @return Genius\View\Render
          */
-        public function renderHtml($html, array $parameters = [])
+        public function setContext($context)
         {
-
+            return $this;
         }
 
     }

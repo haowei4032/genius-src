@@ -18,4 +18,14 @@ class Index extends Controller
         var_dump($this);
     }
 
+    public function Output($id = 5)
+    {
+        var_dump($id);
+    }
+
+    public function __before()
+    {
+        echo 1;
+    }
+
 }

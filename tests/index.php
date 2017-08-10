@@ -7,9 +7,9 @@
  */
 
 define('APP_ENV', 'alpha');
-define('APP_ROOT', __DIR__);
-define('GENIUS_DEBUG', false);
-define('GENIUS_ROOT', dirname(__DIR__) . '/vendor');
+define('APP_PATH', __DIR__);
+define('GENIUS_DEBUG', true);
+define('GENIUS_ROOT', dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor');
 
-require GENIUS_ROOT . '/initialize.php';
+require GENIUS_ROOT . DIRECTORY_SEPARATOR . 'autoload.php';
 Genius\Application::init();

@@ -12,4 +12,5 @@ define('GENIUS_DEBUG', true);
 define('GENIUS_ROOT', dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vendor');
 
 require GENIUS_ROOT . DIRECTORY_SEPARATOR . 'autoload.php';
-Genius\Application::init();
+$arguments = require implode(DIRECTORY_SEPARATOR, [APP_PATH, 'config', 'config.php']);
+Genius\Application::runArguments($arguments);

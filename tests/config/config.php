@@ -7,6 +7,21 @@
  */
 
 return [
+	
+	'id' => '',
+
+	'components' => [
+	
+	],
+
+	'parameters' => [
+	
+	],
+
+	 
+];
+
+/*return [
 
     'alpha' => [
 
@@ -33,4 +48,4 @@ return [
 
     ]
 
-];
+];*/

@@ -8,6 +8,6 @@ php:
   - hhvm
 
 before_script:
-  - cd test
+  - cd tests
 
 script: phpunit -v

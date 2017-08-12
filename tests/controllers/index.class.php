@@ -11,21 +11,7 @@ namespace Controllers;
 use Genius;
 use Genius\Controller\General as Controller;
 
-class Index extends Controller
+class IndexController extends Controller
 {
-    public function Index()
-    {
-        var_dump($this);
-    }
-
-    public function Output($id = 5)
-    {
-        var_dump($id);
-    }
-
-    public function __before()
-    {
-        echo 1;
-    }
-
+	public function actionIndex()
 }

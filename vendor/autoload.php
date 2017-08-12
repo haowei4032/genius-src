@@ -30,7 +30,7 @@ namespace
         {
 			$group = explode('/', $alias);
 			$base = array_shift($group);
-			$real = implode('/', $group);
+			$path = implode('/', $group);
 			if (isset(self::$aliases[$alias])) return self::$aliases[$alias];
 			if (isset(self::$aliases[$base])) return self::$aliases[$base] .'/'. $path;
 			return null;

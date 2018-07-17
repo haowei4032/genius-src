@@ -1,0 +1,22 @@
+{
+  "name": "eastwood/genius",
+  "keyword": ["genius"],
+  "description": "PHP Framework",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "type": "library",
+  "authors": [
+    {
+      "name": "eastwood",
+      "email": "boss@haowei.me"
+    }
+  ],
+  "require": {
+    "php": ">=5.4.0"
+  },
+  "autoload": {
+      "psr-4": {
+        "Genius\\": "src/"
+      }
+  }
+}

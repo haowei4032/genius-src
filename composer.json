@@ -1,6 +1,8 @@
 {
   "name": "eastwood/genius",
-  "keyword": ["genius"],
+  "keyword": [
+    "genius"
+  ],
   "description": "PHP Framework",
   "minimum-stability": "stable",
   "license": "MIT",
@@ -15,8 +17,11 @@
     "php": ">=5.4.0"
   },
   "autoload": {
-      "psr-4": {
-        "Genius\\": "src/"
-      }
+    "psr-4": {
+      "Genius\\": "src/"
+    },
+    "psr-0": {
+      "Genius": ""
+    }
   }
 }
